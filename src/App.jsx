@@ -12,7 +12,6 @@ function AppContent() {
 
   // Active modals
   const [activeNoteRecording, setActiveNoteRecording] = useState(null);
-  const [activeTagRecording, setActiveTagRecording] = useState(null);
   const [activeDeleteRecording, setActiveDeleteRecording] = useState(null);
 
   // If no folder configured and no recordings indexed yet, display onboarding
@@ -27,7 +26,6 @@ function AppContent() {
       searchQuery={searchQuery}
       setSearchQuery={setSearchQuery}
       onOpenNote={(rec) => setActiveNoteRecording(rec)}
-      onOpenTag={(rec) => setActiveTagRecording(rec)}
       onOpenDelete={(rec) => setActiveDeleteRecording(rec)}
     />
   );

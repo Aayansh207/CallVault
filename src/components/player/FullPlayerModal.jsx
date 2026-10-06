@@ -145,16 +145,6 @@ export function FullPlayerModal({ onOpenNote, onOpenTag }) {
             </span>
           </div>
 
-          {/* Tags preview */}
-          {currentRecording.tags && currentRecording.tags.length > 0 && (
-            <div className="flex flex-wrap justify-center gap-1.5 mb-6">
-              {currentRecording.tags.map((t) => (
-                <Badge key={t.id} color={t.color}>
-                  {t.name}
-                </Badge>
-              ))}
-            </div>
-          )}
 
           {/* Waveform / Scrubber */}
           <div className="w-full max-w-lg mb-6">
@@ -275,7 +265,7 @@ export function FullPlayerModal({ onOpenNote, onOpenTag }) {
             <button
               type="button"
               onClick={() => onOpenNote(currentRecording)}
-              className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-vault-800/80 hover:bg-vault-750 text-slate-300 border border-vault-700/60 transition"
+              className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-vault-800/90 hover:bg-vault-750 text-slate-200 border border-vault-700/60 transition shadow-sm"
             >
               <FileText className="w-4 h-4 text-sky-400" />
               <span>{currentRecording.note_content ? 'Edit Note' : 'Add Note'}</span>
@@ -283,20 +273,11 @@ export function FullPlayerModal({ onOpenNote, onOpenTag }) {
 
             <button
               type="button"
-              onClick={() => onOpenTag(currentRecording)}
-              className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-vault-800/80 hover:bg-vault-750 text-slate-300 border border-vault-700/60 transition"
-            >
-              <TagIcon className="w-4 h-4 text-indigo-400" />
-              <span>Tags</span>
-            </button>
-
-            <button
-              type="button"
               onClick={handleRevealInFinder}
-              className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-vault-800/80 hover:bg-vault-750 text-slate-300 border border-vault-700/60 transition"
+              className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-vault-800/90 hover:bg-vault-750 text-slate-200 border border-vault-700/60 transition shadow-sm"
             >
               <Folder className="w-4 h-4 text-amber-400" />
-              <span>Finder</span>
+              <span>Show in Finder</span>
             </button>
           </div>
 

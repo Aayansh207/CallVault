@@ -1,24 +1,76 @@
 const { getDatabase } = require('../connection');
 const queries = require('../queries/recording.queries');
+const { cleanPersonIdentifier, isPhoneNumber } = require('../../scanner/filename-parser');
 const { logger } = require('../../utils/logger');
 
 class RecordingRepository {
   constructor(db = null) {
     this._db = db;
+    this._sanitized = false;
   }
 
   get db() {
-    return this._db || getDatabase();
+    const instance = this._db || getDatabase();
+    if (!this._sanitized && instance) {
+      this._sanitized = true;
+      this.sanitizeExistingNames(instance);
+    }
+    return instance;
+  }
+
+  /**
+   * Cleans existing names in SQLite (e.g. "Call ABC" -> "ABC")
+   */
+  sanitizeExistingNames(database = null) {
+    const db = database || this.db;
+    try {
+      const rows = db.prepare(`
+        SELECT id, person_name, phone_number 
+        FROM recordings 
+        WHERE person_name LIKE 'Call %' 
+           OR person_name LIKE 'Recording %' 
+           OR person_name LIKE 'Audio %'
+           OR person_name LIKE 'Call_%'
+      `).all();
+
+      if (rows.length === 0) return 0;
+
+      const updateStmt = db.prepare(`
+        UPDATE recordings 
+        SET person_name = ?, 
+            phone_number = COALESCE(?, phone_number),
+            updated_at = datetime('now')
+        WHERE id = ?
+      `);
+
+      const tx = db.transaction(() => {
+        for (const row of rows) {
+          const cleaned = cleanPersonIdentifier(row.person_name);
+          const isPhone = isPhoneNumber(cleaned);
+          updateStmt.run(isPhone ? null : cleaned, isPhone ? cleaned : row.phone_number, row.id);
+        }
+      });
+
+      tx();
+      logger.info(`Sanitized ${rows.length} existing recording names in SQLite`);
+      return rows.length;
+    } catch (err) {
+      logger.error('Failed to sanitize existing names', { error: err.message });
+      return 0;
+    }
   }
 
   upsert(data) {
     try {
       const stmt = this.db.prepare(queries.UPSERT_RECORDING);
+      const cleanedName = data.personName ? cleanPersonIdentifier(data.personName) : null;
+      const isPhone = isPhoneNumber(cleanedName);
+
       const info = stmt.run({
         filePath: data.filePath,
         fileName: data.fileName,
-        personName: data.personName || null,
-        phoneNumber: data.phoneNumber || null,
+        personName: isPhone ? null : cleanedName,
+        phoneNumber: isPhone ? cleanedName : data.phoneNumber || null,
         recordedAt: data.recordedAt,
         durationSeconds: data.durationSeconds || 0,
         fileSize: data.fileSize || 0,
@@ -60,9 +112,12 @@ class RecordingRepository {
   list(options = {}) {
     try {
       const { whereSql, params } = queries.buildFilterClause(options);
-      
-      const sortColumn = ['recorded_at', 'duration_seconds', 'person_name', 'file_size']
-        .includes(options.sortBy) ? options.sortBy : 'recorded_at';
+
+      const sortColumn = ['recorded_at', 'duration_seconds', 'person_name', 'file_size'].includes(
+        options.sortBy
+      )
+        ? options.sortBy
+        : 'recorded_at';
       const sortOrder = options.sortOrder === 'ASC' ? 'ASC' : 'DESC';
 
       let sql = `
@@ -72,7 +127,10 @@ class RecordingRepository {
             FROM recording_tags rt
             JOIN tags t ON rt.tag_id = t.id
             WHERE rt.recording_id = r.id
-          ), '[]') as tags_json
+          ), '[]') as tags_json,
+          (
+            SELECT content FROM notes WHERE recording_id = r.id ORDER BY updated_at DESC LIMIT 1
+          ) as note_content
         FROM recordings r
         ${whereSql}
         ORDER BY r.${sortColumn} ${sortOrder}
@@ -195,6 +253,7 @@ class RecordingRepository {
         total_people: 0,
         total_favorites: 0,
         total_available: 0,
+        total_with_notes: 0,
       };
     } catch (err) {
       logger.error(`Failed to get stats: ${err.message}`);
@@ -205,6 +264,7 @@ class RecordingRepository {
         total_people: 0,
         total_favorites: 0,
         total_available: 0,
+        total_with_notes: 0,
       };
     }
   }
@@ -219,9 +279,53 @@ class RecordingRepository {
     }
   }
 
+  /**
+   * Merges two contacts manually:
+   * Moves all recordings from sourceContact and targetContact to the final unified name & phone
+   */
+  mergeContacts(sourceContact, targetContact, finalDetails = {}) {
+    try {
+      const finalName = (finalDetails.personName || targetContact.person_name || sourceContact.person_name || '').trim();
+      const finalPhone = (finalDetails.phoneNumber || targetContact.phone_number || sourceContact.phone_number || '').trim();
+
+      const sourceId = sourceContact.identifier || sourceContact.person_name || sourceContact.phone_number;
+      const targetId = targetContact.identifier || targetContact.person_name || targetContact.phone_number;
+
+      const stmt = this.db.prepare(`
+        UPDATE recordings
+        SET person_name = ?,
+            phone_number = CASE WHEN ? != '' THEN ? ELSE phone_number END,
+            updated_at = datetime('now')
+        WHERE (person_name = ? OR phone_number = ? OR COALESCE(person_name, phone_number) = ?)
+           OR (person_name = ? OR phone_number = ? OR COALESCE(person_name, phone_number) = ?)
+      `);
+
+      const tx = this.db.transaction(() => {
+        const res = stmt.run(
+          finalName || null,
+          finalPhone,
+          finalPhone || null,
+          sourceId,
+          sourceId,
+          sourceId,
+          targetId,
+          targetId,
+          targetId
+        );
+        return res.changes;
+      });
+
+      const updatedCount = tx();
+      logger.info(`Successfully merged contacts: '${sourceId}' and '${targetId}' into '${finalName}' (${updatedCount} calls updated)`);
+      return { success: true, updatedCount };
+    } catch (err) {
+      logger.error(`Failed to merge contacts: ${err.message}`);
+      throw err;
+    }
+  }
+
   getTimelineCounts(yearMonthPrefix) {
     try {
-      // yearMonthPrefix: 'YYYY-MM'
       const stmt = this.db.prepare(`
         SELECT strftime('%Y-%m-%d', recorded_at) as date, COUNT(*) as count
         FROM recordings

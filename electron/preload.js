@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('callvault', {
     getStats: () => ipcRenderer.invoke('recordings:getStats'),
     getPeople: () => ipcRenderer.invoke('recordings:getPeople'),
     getTimeline: (yearMonth) => ipcRenderer.invoke('recordings:getTimeline', yearMonth),
+    mergeContacts: (src, target, details) => ipcRenderer.invoke('recordings:mergeContacts', src, target, details),
     getTags: () => ipcRenderer.invoke('recordings:getTags'),
     createTag: (name, color) => ipcRenderer.invoke('recordings:createTag', name, color),
     addTag: (recordingId, tagId) => ipcRenderer.invoke('recordings:addTag', recordingId, tagId),

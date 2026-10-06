@@ -5,20 +5,17 @@ import { Sidebar } from './Sidebar';
 import { MiniPlayer } from '../player/MiniPlayer';
 import { FullPlayerModal } from '../player/FullPlayerModal';
 import { NoteModal } from '../recordings/NoteModal';
-import { TagModal } from '../recordings/TagModal';
 import { DeleteConfirmModal } from '../recordings/DeleteConfirmModal';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useApp } from '../../context/AppContext';
 
-export function AppShell({ searchQuery, setSearchQuery }) {
+export function AppShell({ searchQuery, setSearchQuery, onOpenNote, onOpenDelete }) {
   const navigate = useNavigate();
   const { refreshData } = useApp();
 
   // Active modals
   const [activeNoteRecording, setActiveNoteRecording] = useState(null);
-  const [activeTagRecording, setActiveTagRecording] = useState(null);
   const [activeDeleteRecording, setActiveDeleteRecording] = useState(null);
-  const [isNewTagModalOpen, setIsNewTagModalOpen] = useState(false);
 
   // Initialize keyboard shortcuts
   useKeyboardShortcuts();
@@ -31,6 +28,16 @@ export function AppShell({ searchQuery, setSearchQuery }) {
     }
   };
 
+  const handleOpenNoteModal = (rec) => {
+    setActiveNoteRecording(rec);
+    if (onOpenNote) onOpenNote(rec);
+  };
+
+  const handleOpenDeleteModal = (rec) => {
+    setActiveDeleteRecording(rec);
+    if (onOpenDelete) onOpenDelete(rec);
+  };
+
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-vault-950 text-slate-100 select-none">
       {/* Title Bar */}
@@ -38,22 +45,22 @@ export function AppShell({ searchQuery, setSearchQuery }) {
 
       {/* Main Container: Sidebar + Content */}
       <div className="flex-1 flex overflow-hidden">
-        <Sidebar onOpenNewTag={() => setIsNewTagModalOpen(true)} />
+        <Sidebar />
 
         <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-vault-950">
           <Outlet />
         </main>
       </div>
 
-      {/* Persistent Mini Player at bottom */}
-      <MiniPlayer />
+      {/* Persistent Mini Player at bottom with quick note support */}
+      <MiniPlayer onOpenNote={handleOpenNoteModal} />
 
-      {/* Global Modals */}
+      {/* Full Player Modal */}
       <FullPlayerModal
-        onOpenNote={(rec) => setActiveNoteRecording(rec)}
-        onOpenTag={(rec) => setActiveTagRecording(rec)}
+        onOpenNote={handleOpenNoteModal}
       />
 
+      {/* Note Modal */}
       <NoteModal
         recording={activeNoteRecording}
         isOpen={Boolean(activeNoteRecording)}
@@ -61,23 +68,7 @@ export function AppShell({ searchQuery, setSearchQuery }) {
         onNoteSaved={() => refreshData()}
       />
 
-      <TagModal
-        recording={activeTagRecording}
-        isOpen={Boolean(activeTagRecording)}
-        onClose={() => setActiveTagRecording(null)}
-        onTagsUpdated={() => refreshData()}
-      />
-
-      {/* New Tag standalone modal */}
-      {isNewTagModalOpen && (
-        <TagModal
-          recording={{ id: 0, tags: [] }}
-          isOpen={isNewTagModalOpen}
-          onClose={() => setIsNewTagModalOpen(false)}
-          onTagsUpdated={() => refreshData()}
-        />
-      )}
-
+      {/* Delete Confirmation Modal */}
       <DeleteConfirmModal
         recording={activeDeleteRecording}
         isOpen={Boolean(activeDeleteRecording)}

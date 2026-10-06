@@ -54,6 +54,9 @@ export function NoteModal({ recording, isOpen, onClose, onNoteSaved }) {
             className="w-full bg-vault-950 border border-vault-800 rounded-xl p-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 resize-none"
             autoFocus
           />
+          <p className="text-[11px] text-slate-500 mt-1.5 flex items-center space-x-1">
+            <span>💡 All notes are indexed and searchable instantly via the search bar.</span>
+          </p>
         </div>
 
         <div className="flex justify-end space-x-3 pt-2">

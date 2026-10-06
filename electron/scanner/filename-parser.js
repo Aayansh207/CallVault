@@ -15,6 +15,30 @@ function isPhoneNumber(str) {
 }
 
 /**
+ * Cleans person identifier by stripping unwanted prefixes like "Call ", "Call with ",
+ * "Call to ", "Call from ", "Call Recording ", "Recording ", etc.
+ * Fixes broken names like "Call ABC" -> "ABC"
+ */
+function cleanPersonIdentifier(raw) {
+  if (!raw) return null;
+  let str = raw.trim();
+
+  // Strip phone numbers from call prefix (e.g. "Call +91..." -> "+91...")
+  let prev;
+  do {
+    prev = str;
+    str = str
+      .replace(/^(call\s+recording|audio\s+recording|voice\s+recording|phone\s+call|call\s+with|call\s+to|call\s+from|recording\s+with|recording|call|audio|voice)[\s_\-:]+/i, '')
+      .replace(/^[\-_:\s]+/, '')
+      .replace(/[\-_:\s]+$/, '')
+      .trim();
+  } while (str !== prev && str.length > 0);
+
+  // If entire string was just "Call" or empty, return fallback or original
+  return str || raw.trim();
+}
+
+/**
  * Parses YYMMDD and HHMMSS into ISO 8601 string: YYYY-MM-DDTHH:MM:SS
  */
 function parseDateTime(datePart, timePart) {
@@ -69,7 +93,7 @@ function parseFilename(filename, fileMtimeMs = null) {
     const match = basename.match(primaryRegex);
 
     if (match) {
-      const identifier = match[1].trim();
+      let identifier = cleanPersonIdentifier(match[1]);
       const datePart = match[2];
       const timePart = match[3];
 
@@ -107,7 +131,7 @@ function parseFilename(filename, fileMtimeMs = null) {
     const relaxedRegex = /^(.+?)_(\d{6})_(\d{6})$/;
     const relaxedMatch = basename.match(relaxedRegex);
     if (relaxedMatch) {
-      const identifier = relaxedMatch[1].replace(/^call\s+recording\s*/i, '').trim();
+      let identifier = cleanPersonIdentifier(relaxedMatch[1]);
       const recordedAt = parseDateTime(relaxedMatch[2], relaxedMatch[3]);
       if (recordedAt) {
         return {
@@ -125,10 +149,11 @@ function parseFilename(filename, fileMtimeMs = null) {
       : new Date().toISOString().split('.')[0];
 
     // Clean up basename to guess a readable identifier
-    let guessName = basename
-      .replace(/^call\s+recording\s*/i, '')
-      .replace(/[_\-]+/g, ' ')
-      .trim();
+    let guessName = cleanPersonIdentifier(
+      basename
+        .replace(/[_\-]+/g, ' ')
+        .trim()
+    );
 
     if (!guessName) {
       guessName = 'Unknown Recording';
@@ -159,6 +184,7 @@ function parseFilename(filename, fileMtimeMs = null) {
 
 module.exports = {
   parseFilename,
+  cleanPersonIdentifier,
   isPhoneNumber,
   parseDateTime,
 };

@@ -73,6 +73,10 @@ class RecordingService {
     return recordingRepository.getTimelineCounts(yearMonth);
   }
 
+  mergeContacts(sourceContact, targetContact, finalDetails) {
+    return recordingRepository.mergeContacts(sourceContact, targetContact, finalDetails);
+  }
+
   // Tags
   getAllTags() {
     return tagRepository.getAllTags();

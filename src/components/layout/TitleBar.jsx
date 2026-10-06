@@ -20,7 +20,7 @@ export function TitleBar({ searchQuery, onSearchChange }) {
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search by name, phone number, or filename..."
+            placeholder="Search by name, number, notes, or date (e.g. October 6)..."
             className="w-full bg-vault-900 border border-vault-800 rounded-xl pl-9 pr-4 py-1.5 text-xs text-slate-100 placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition"
           />
           {searchQuery && (

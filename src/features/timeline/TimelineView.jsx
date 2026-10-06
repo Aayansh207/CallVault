@@ -11,7 +11,7 @@ import { RecordingRow } from '../../components/recordings/RecordingRow';
 import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 
-export function TimelineView({ onOpenNote, onOpenTag, onOpenDelete }) {
+export function TimelineView({ onOpenNote, onOpenDelete }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDayStr, setSelectedDayStr] = useState(() => {
     return new Date().toISOString().split('T')[0];
@@ -216,7 +216,6 @@ export function TimelineView({ onOpenNote, onOpenTag, onOpenDelete }) {
                 recording={recording}
                 playlist={dayRecordings}
                 onOpenNote={onOpenNote}
-                onOpenTag={onOpenTag}
                 onOpenDelete={onOpenDelete}
                 onUpdated={() => {
                   api.recordings

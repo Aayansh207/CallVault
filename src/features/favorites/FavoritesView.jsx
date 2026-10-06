@@ -6,7 +6,7 @@ import { RecordingRow } from '../../components/recordings/RecordingRow';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { EmptyState } from '../../components/common/EmptyState';
 
-export function FavoritesView({ onOpenNote, onOpenTag, onOpenDelete }) {
+export function FavoritesView({ onOpenNote, onOpenDelete }) {
   const { refreshTrigger } = useApp();
   const [recordings, setRecordings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +59,6 @@ export function FavoritesView({ onOpenNote, onOpenTag, onOpenDelete }) {
               recording={recording}
               playlist={recordings}
               onOpenNote={onOpenNote}
-              onOpenTag={onOpenTag}
               onOpenDelete={onOpenDelete}
               onUpdated={loadFavorites}
             />

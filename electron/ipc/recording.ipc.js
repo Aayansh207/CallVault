@@ -39,6 +39,10 @@ function registerRecordingIPC(mainWindow) {
     return recordingService.getTimelineCounts(yearMonth);
   });
 
+  ipcMain.handle('recordings:mergeContacts', async (_, sourceContact, targetContact, finalDetails) => {
+    return recordingService.mergeContacts(sourceContact, targetContact, finalDetails);
+  });
+
   // Tags
   ipcMain.handle('recordings:getTags', async () => {
     return recordingService.getAllTags();

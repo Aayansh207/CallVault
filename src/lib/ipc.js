@@ -16,6 +16,7 @@ export const api = {
     getStats: () => (isElectron ? window.callvault.recordings.getStats() : Promise.resolve({})),
     getPeople: () => (isElectron ? window.callvault.recordings.getPeople() : Promise.resolve([])),
     getTimeline: (ym) => (isElectron ? window.callvault.recordings.getTimeline(ym) : Promise.resolve([])),
+    mergeContacts: (src, target, details) => (isElectron ? window.callvault.recordings.mergeContacts(src, target, details) : Promise.resolve({ success: true, updatedCount: 0 })),
     getTags: () => (isElectron ? window.callvault.recordings.getTags() : Promise.resolve([])),
     createTag: (name, color) => (isElectron ? window.callvault.recordings.createTag(name, color) : Promise.resolve(null)),
     addTag: (recId, tagId) => (isElectron ? window.callvault.recordings.addTag(recId, tagId) : Promise.resolve([])),

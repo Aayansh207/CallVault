@@ -7,20 +7,27 @@ import { PeopleView } from '../features/people/PeopleView';
 import { FavoritesView } from '../features/favorites/FavoritesView';
 import { SettingsView } from '../features/settings/SettingsView';
 
-export function AppRoutes({ searchQuery, setSearchQuery, onOpenNote, onOpenTag, onOpenDelete }) {
+export function AppRoutes({ searchQuery, setSearchQuery, onOpenNote, onOpenDelete }) {
   return (
     <Routes>
       <Route
         path="/"
-        element={<AppShell searchQuery={searchQuery} setSearchQuery={setSearchQuery} />}
+        element={
+          <AppShell
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            onOpenNote={onOpenNote}
+            onOpenDelete={onOpenDelete}
+          />
+        }
       >
         <Route
           index
           element={
             <LibraryView
               searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
               onOpenNote={onOpenNote}
-              onOpenTag={onOpenTag}
               onOpenDelete={onOpenDelete}
             />
           }
@@ -30,7 +37,6 @@ export function AppRoutes({ searchQuery, setSearchQuery, onOpenNote, onOpenTag, 
           element={
             <TimelineView
               onOpenNote={onOpenNote}
-              onOpenTag={onOpenTag}
               onOpenDelete={onOpenDelete}
             />
           }
@@ -40,7 +46,6 @@ export function AppRoutes({ searchQuery, setSearchQuery, onOpenNote, onOpenTag, 
           element={
             <PeopleView
               onOpenNote={onOpenNote}
-              onOpenTag={onOpenTag}
               onOpenDelete={onOpenDelete}
             />
           }
@@ -50,7 +55,6 @@ export function AppRoutes({ searchQuery, setSearchQuery, onOpenNote, onOpenTag, 
           element={
             <FavoritesView
               onOpenNote={onOpenNote}
-              onOpenTag={onOpenTag}
               onOpenDelete={onOpenDelete}
             />
           }

@@ -7,14 +7,13 @@ import {
   Star,
   Settings,
   FolderSync,
-  Tag as TagIcon,
-  Plus,
+  FileText,
   ShieldCheck,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
-export function Sidebar({ onOpenNewTag }) {
-  const { stats, tags, selectedTag, setSelectedTag, scanningState, startScan, settings } = useApp();
+export function Sidebar() {
+  const { stats, scanningState, startScan, settings } = useApp();
 
   const navItems = [
     {
@@ -98,47 +97,25 @@ export function Sidebar({ onOpenNewTag }) {
           </nav>
         </div>
 
-        {/* Collections / Tags */}
-        <div className="px-3 pt-2">
-          <div className="flex items-center justify-between px-3 mb-2">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-              Collections
-            </p>
-            <button
-              type="button"
-              onClick={onOpenNewTag}
-              className="p-1 rounded-lg text-slate-400 hover:text-sky-400 hover:bg-vault-850 transition"
-              title="New Tag"
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          <div className="space-y-0.5 max-h-48 overflow-y-auto">
-            {tags.map((tag) => {
-              const isSelected = selectedTag === tag.id;
-              return (
-                <button
-                  key={tag.id}
-                  type="button"
-                  onClick={() => setSelectedTag(isSelected ? null : tag.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition ${
-                    isSelected
-                      ? 'bg-indigo-500/15 text-indigo-300 font-semibold'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-vault-900'
-                  }`}
-                >
-                  <div className="flex items-center space-x-2.5 truncate">
-                    <span
-                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: tag.color }}
-                    />
-                    <span className="truncate">{tag.name}</span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+        {/* Notes Quick Access */}
+        <div className="px-3 pt-1">
+          <p className="px-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+            Insights
+          </p>
+          <NavLink
+            to="/?filter=notes"
+            className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-vault-900 transition"
+          >
+            <div className="flex items-center space-x-3">
+              <FileText className="w-4 h-4 text-sky-400 flex-shrink-0" />
+              <span>Recordings with Notes</span>
+            </div>
+            {stats.total_with_notes > 0 && (
+              <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-sky-950/80 text-sky-400 border border-sky-800/50">
+                {stats.total_with_notes}
+              </span>
+            )}
+          </NavLink>
         </div>
       </div>
 
