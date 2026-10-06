@@ -20,9 +20,11 @@ import {
   formatDuration,
   formatTime,
   formatDate,
+  formatFileSize,
   getInitials,
   getAvatarColor,
 } from '../../lib/formatters';
+
 
 export function RecordingRow({
   recording,
@@ -192,6 +194,14 @@ export function RecordingRow({
             <span className="text-slate-400 text-[11px]">
               {formatDate(recording.recorded_at)}
             </span>
+            {recording.file_size > 0 && (
+              <>
+                <span>·</span>
+                <span className="font-mono text-slate-400 text-[11px]">
+                  {formatFileSize(recording.file_size)}
+                </span>
+              </>
+            )}
           </div>
         </div>
       </div>

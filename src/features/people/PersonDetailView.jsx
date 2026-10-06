@@ -19,6 +19,10 @@ import {
 import { RecordingRow } from '../../components/recordings/RecordingRow';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { EmptyState } from '../../components/common/EmptyState';
+import { SortSelector } from '../../components/common/SortSelector';
+import { SORT_OPTIONS } from '../../lib/constants';
+
+const PERSON_SORT_OPTIONS = SORT_OPTIONS.filter((o) => o.column !== 'person_name');
 
 export function PersonDetailView({
   person,
@@ -31,6 +35,8 @@ export function PersonDetailView({
   const [filterFavOnly, setFilterFavOnly] = useState(false);
   const [filterNotesOnly, setFilterNotesOnly] = useState(false);
 
+  const [sortOption, setSortOption] = useState(PERSON_SORT_OPTIONS[0]);
+
   const displayName = person.person_name || person.phone_number || 'Unknown';
 
   const loadPersonRecordings = async () => {
@@ -40,8 +46,8 @@ export function PersonDetailView({
         person: displayName,
         personName: person.person_name || undefined,
         phoneNumber: person.phone_number || undefined,
-        sortBy: 'recorded_at',
-        sortOrder: 'DESC',
+        sortBy: sortOption.column,
+        sortOrder: sortOption.order,
       };
       if (filterFavOnly) {
         params.favorite = true;
@@ -60,7 +66,7 @@ export function PersonDetailView({
 
   useEffect(() => {
     loadPersonRecordings();
-  }, [person, filterFavOnly, filterNotesOnly, refreshTrigger]);
+  }, [person, filterFavOnly, filterNotesOnly, sortOption, refreshTrigger]);
 
 
   return (
@@ -129,33 +135,41 @@ export function PersonDetailView({
           </div>
         </div>
 
-        {/* Filter Toggles */}
-        <div className="flex items-center space-x-2 mt-5">
-          <button
-            type="button"
-            onClick={() => setFilterFavOnly(!filterFavOnly)}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
-              filterFavOnly
-                ? 'bg-amber-500 text-slate-950 shadow-sm'
-                : 'bg-vault-900 text-slate-400 hover:text-slate-200 border border-vault-800'
-            }`}
-          >
-            <Star className={`w-3.5 h-3.5 ${filterFavOnly ? 'fill-current' : ''}`} />
-            <span>Favorites</span>
-          </button>
+        {/* Filter Toggles & Sort */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-5">
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={() => setFilterFavOnly(!filterFavOnly)}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                filterFavOnly
+                  ? 'bg-amber-500 text-slate-950 shadow-sm'
+                  : 'bg-vault-900 text-slate-400 hover:text-slate-200 border border-vault-800'
+              }`}
+            >
+              <Star className={`w-3.5 h-3.5 ${filterFavOnly ? 'fill-current' : ''}`} />
+              <span>Favorites</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setFilterNotesOnly(!filterNotesOnly)}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
-              filterNotesOnly
-                ? 'bg-sky-500 text-slate-950 shadow-sm'
-                : 'bg-vault-900 text-slate-400 hover:text-slate-200 border border-vault-800'
-            }`}
-          >
-            <FileText className="w-3.5 h-3.5" />
-            <span>With Notes</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => setFilterNotesOnly(!filterNotesOnly)}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                filterNotesOnly
+                  ? 'bg-sky-500 text-slate-950 shadow-sm'
+                  : 'bg-vault-900 text-slate-400 hover:text-slate-200 border border-vault-800'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>With Notes</span>
+            </button>
+          </div>
+
+          <SortSelector
+            sortOption={sortOption}
+            onSortChange={setSortOption}
+            options={PERSON_SORT_OPTIONS}
+          />
         </div>
       </div>
 

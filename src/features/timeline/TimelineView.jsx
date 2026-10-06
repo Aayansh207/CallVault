@@ -11,6 +11,8 @@ import { api } from '../../lib/ipc';
 import { RecordingRow } from '../../components/recordings/RecordingRow';
 import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
+import { SortSelector } from '../../components/common/SortSelector';
+import { SORT_OPTIONS } from '../../lib/constants';
 
 export function TimelineView() {
   const { openNoteModal, openDeleteModal, refreshTrigger } = useApp();
@@ -21,7 +23,7 @@ export function TimelineView() {
   const [monthCounts, setMonthCounts] = useState({});
   const [dayRecordings, setDayRecordings] = useState([]);
   const [loading, setLoading] = useState(false);
-
+  const [sortOption, setSortOption] = useState(SORT_OPTIONS[0]);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth(); // 0-indexed
@@ -47,25 +49,26 @@ export function TimelineView() {
   }, [yearMonthPrefix]);
 
   // Load recordings for selected day
-  useEffect(() => {
-    async function loadDayRecordings() {
-      if (!selectedDayStr) return;
-      try {
-        setLoading(true);
-        const list = await api.recordings.list({
-          date: selectedDayStr,
-          sortBy: 'recorded_at',
-          sortOrder: 'DESC',
-        });
-        setDayRecordings(list || []);
-      } catch (err) {
-        console.error('Failed to load day recordings:', err);
-      } finally {
-        setLoading(false);
-      }
+  const loadDayRecordings = async () => {
+    if (!selectedDayStr) return;
+    try {
+      setLoading(true);
+      const list = await api.recordings.list({
+        date: selectedDayStr,
+        sortBy: sortOption.column,
+        sortOrder: sortOption.order,
+      });
+      setDayRecordings(list || []);
+    } catch (err) {
+      console.error('Failed to load day recordings:', err);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
     loadDayRecordings();
-  }, [selectedDayStr]);
+  }, [selectedDayStr, sortOption, refreshTrigger]);
 
   const handlePrevMonth = () => {
     setCurrentDate(new Date(year, month - 1, 1));
@@ -195,12 +198,19 @@ export function TimelineView() {
 
       {/* Right: Calls on selected day */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
-        <div className="p-6 border-b border-vault-850/80 flex-shrink-0">
-          <h2 className="text-xl font-bold text-slate-100">{selectedDateFormatted}</h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            {dayRecordings.length}{' '}
-            {dayRecordings.length === 1 ? 'call recording' : 'call recordings'}
-          </p>
+        <div className="p-6 border-b border-vault-850/80 flex-shrink-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-slate-100">{selectedDateFormatted}</h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {dayRecordings.length}{' '}
+              {dayRecordings.length === 1 ? 'call recording' : 'call recordings'}
+            </p>
+          </div>
+
+          <SortSelector
+            sortOption={sortOption}
+            onSortChange={setSortOption}
+          />
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-2">
@@ -220,15 +230,7 @@ export function TimelineView() {
                 playlist={dayRecordings}
                 onOpenNote={openNoteModal}
                 onOpenDelete={openDeleteModal}
-                onUpdated={() => {
-                  api.recordings
-                    .list({
-                      date: selectedDayStr,
-                      sortBy: 'recorded_at',
-                      sortOrder: 'DESC',
-                    })
-                    .then((res) => setDayRecordings(res || []));
-                }}
+                onUpdated={loadDayRecordings}
               />
             ))
 

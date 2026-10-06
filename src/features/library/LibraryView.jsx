@@ -20,6 +20,7 @@ import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { getDateHeaderGroup, formatHoursMinutes, formatFileSize } from '../../lib/formatters';
 import { SORT_OPTIONS } from '../../lib/constants';
+import { SortSelector } from '../../components/common/SortSelector';
 
 export function LibraryView({ searchQuery, setSearchQuery }) {
   const [searchParams] = useSearchParams();
@@ -146,26 +147,7 @@ export function LibraryView({ searchQuery, setSearchQuery }) {
           </div>
 
           {/* Sort selector */}
-          <div className="flex items-center space-x-2.5">
-            <div className="flex items-center space-x-1.5 text-xs text-slate-400">
-              <ArrowUpDown className="w-3.5 h-3.5" />
-              <span>Sort:</span>
-            </div>
-            <select
-              value={sortOption.value}
-              onChange={(e) => {
-                const opt = SORT_OPTIONS.find((s) => s.value === e.target.value);
-                if (opt) setSortOption(opt);
-              }}
-              className="bg-vault-900 border border-vault-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500 cursor-pointer shadow-sm"
-            >
-              {SORT_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <SortSelector sortOption={sortOption} onSortChange={setSortOption} />
         </div>
 
         {/* Filter Pills */}
@@ -222,7 +204,7 @@ export function LibraryView({ searchQuery, setSearchQuery }) {
                 : 'No calls match the selected filter.'
             }
           />
-        ) : (
+        ) : sortOption.column === 'recorded_at' ? (
           groupedRecordings.map((group) => (
             <section key={group.header} className="space-y-2.5">
               {/* Sticky Date Header with Daily Count & Duration */}
@@ -259,6 +241,20 @@ export function LibraryView({ searchQuery, setSearchQuery }) {
               </div>
             </section>
           ))
+        ) : (
+          <div className="space-y-2">
+            {recordings.map((recording) => (
+              <RecordingRow
+                key={recording.id}
+                recording={recording}
+                playlist={recordings}
+                searchHighlight={searchQuery}
+                onOpenNote={openNoteModal}
+                onOpenDelete={openDeleteModal}
+                onUpdated={loadRecordings}
+              />
+            ))}
+          </div>
         )}
       </div>
 
