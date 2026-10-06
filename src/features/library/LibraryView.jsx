@@ -21,9 +21,9 @@ import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { getDateHeaderGroup, formatHoursMinutes, formatFileSize } from '../../lib/formatters';
 import { SORT_OPTIONS } from '../../lib/constants';
 
-export function LibraryView({ searchQuery, setSearchQuery, onOpenNote, onOpenDelete }) {
+export function LibraryView({ searchQuery, setSearchQuery }) {
   const [searchParams] = useSearchParams();
-  const { refreshTrigger, stats } = useApp();
+  const { refreshTrigger, stats, openNoteModal, openDeleteModal } = useApp();
   const [recordings, setRecordings] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -193,7 +193,7 @@ export function LibraryView({ searchQuery, setSearchQuery, onOpenNote, onOpenDel
                 <span>{pill.label}</span>
                 {pill.count !== undefined && pill.count > 0 && (
                   <span
-                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                    className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono ${
                       isActive ? 'bg-slate-950 text-sky-300' : 'bg-vault-800 text-slate-400'
                     }`}
                   >
@@ -251,8 +251,8 @@ export function LibraryView({ searchQuery, setSearchQuery, onOpenNote, onOpenDel
                     recording={recording}
                     playlist={recordings}
                     searchHighlight={searchQuery}
-                    onOpenNote={onOpenNote}
-                    onOpenDelete={onOpenDelete}
+                    onOpenNote={openNoteModal}
+                    onOpenDelete={openDeleteModal}
                     onUpdated={loadRecordings}
                   />
                 ))}
@@ -261,6 +261,7 @@ export function LibraryView({ searchQuery, setSearchQuery, onOpenNote, onOpenDel
           ))
         )}
       </div>
+
     </div>
   );
 }

@@ -7,29 +7,39 @@ import { OnboardingView } from './features/onboarding/OnboardingView';
 
 function AppContent() {
   const { hasFolder, stats } = useApp();
-  const [onboardingDismissed, setOnboardingDismissed] = useState(false);
+  const [onboardingDismissed, setOnboardingDismissed] = useState(() => {
+    try {
+      return localStorage.getItem('callvault_onboarded') === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Active modals
-  const [activeNoteRecording, setActiveNoteRecording] = useState(null);
-  const [activeDeleteRecording, setActiveDeleteRecording] = useState(null);
+  const handleDismissOnboarding = () => {
+    setOnboardingDismissed(true);
+    try {
+      localStorage.setItem('callvault_onboarded', 'true');
+    } catch {
+      // ignore storage errors
+    }
+  };
 
-  // If no folder configured and no recordings indexed yet, display onboarding
-  const showOnboarding = (!hasFolder || stats.total_recordings === 0) && !onboardingDismissed;
+  // Only show onboarding if user has not chosen a folder AND hasn't dismissed it
+  const showOnboarding = !hasFolder && !onboardingDismissed;
 
   if (showOnboarding) {
-    return <OnboardingView onComplete={() => setOnboardingDismissed(true)} />;
+    return <OnboardingView onComplete={handleDismissOnboarding} />;
   }
 
   return (
     <AppRoutes
       searchQuery={searchQuery}
       setSearchQuery={setSearchQuery}
-      onOpenNote={(rec) => setActiveNoteRecording(rec)}
-      onOpenDelete={(rec) => setActiveDeleteRecording(rec)}
     />
   );
 }
+
 
 export default function App() {
   return (

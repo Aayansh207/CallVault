@@ -10,6 +10,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { api } from '../../lib/ipc';
+import { useApp } from '../../context/AppContext';
 import {
   formatHoursMinutes,
   getInitials,
@@ -22,10 +23,9 @@ import { EmptyState } from '../../components/common/EmptyState';
 export function PersonDetailView({
   person,
   onBack,
-  onOpenNote,
-  onOpenDelete,
   onOpenMerge,
 }) {
+  const { openNoteModal, openDeleteModal, openMergeModal, refreshTrigger } = useApp();
   const [recordings, setRecordings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterFavOnly, setFilterFavOnly] = useState(false);
@@ -38,6 +38,8 @@ export function PersonDetailView({
       setLoading(true);
       const params = {
         person: displayName,
+        personName: person.person_name || undefined,
+        phoneNumber: person.phone_number || undefined,
         sortBy: 'recorded_at',
         sortOrder: 'DESC',
       };
@@ -58,7 +60,8 @@ export function PersonDetailView({
 
   useEffect(() => {
     loadPersonRecordings();
-  }, [person, filterFavOnly, filterNotesOnly]);
+  }, [person, filterFavOnly, filterNotesOnly, refreshTrigger]);
+
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-vault-950">
@@ -176,10 +179,11 @@ export function PersonDetailView({
               key={recording.id}
               recording={recording}
               playlist={recordings}
-              onOpenNote={onOpenNote}
-              onOpenDelete={onOpenDelete}
+              onOpenNote={openNoteModal}
+              onOpenDelete={openDeleteModal}
               onUpdated={loadPersonRecordings}
             />
+
           ))
         )}
       </div>

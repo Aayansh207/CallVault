@@ -13,9 +13,10 @@ import {
   Gauge,
 } from 'lucide-react';
 import { usePlayer } from '../../context/PlayerContext';
+import { useApp } from '../../context/AppContext';
 import { formatDuration, getInitials, getAvatarColor } from '../../lib/formatters';
 
-export function MiniPlayer({ onOpenNote }) {
+export function MiniPlayer() {
   const {
     currentRecording,
     isPlaying,
@@ -34,6 +35,7 @@ export function MiniPlayer({ onOpenNote }) {
     toggleFavorite,
     openFullPlayer,
   } = usePlayer();
+  const { openNoteModal } = useApp();
 
   if (!currentRecording) return null;
 
@@ -45,6 +47,15 @@ export function MiniPlayer({ onOpenNote }) {
     seek(newTime);
   };
 
+  const handleTopScrubberClick = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const ratio = Math.max(0, Math.min(1, clickX / rect.width));
+    if (duration > 0) {
+      seek(ratio * duration);
+    }
+  };
+
   const handleCycleSpeed = () => {
     const speeds = [0.75, 1.0, 1.25, 1.5, 2.0];
     const currentIndex = speeds.indexOf(playbackRate);
@@ -53,9 +64,13 @@ export function MiniPlayer({ onOpenNote }) {
   };
 
   return (
-    <div className="h-22 bg-vault-950/95 border-t border-vault-800/90 backdrop-blur-2xl px-6 flex items-center justify-between z-40 select-none shadow-2xl relative">
+    <div className="h-24 min-h-[6rem] flex-shrink-0 bg-vault-950/95 border-t border-vault-800/90 backdrop-blur-2xl px-6 flex items-center justify-between z-40 select-none shadow-2xl relative">
       {/* Top Interactive Progress Scrubber */}
-      <div className="absolute top-0 left-0 right-0 h-1.5 bg-vault-900 group cursor-pointer">
+      <div
+        onClick={handleTopScrubberClick}
+        className="absolute top-0 left-0 right-0 h-2 bg-vault-900/80 group cursor-pointer"
+        title="Click to seek"
+      >
         <div
           className="h-full bg-gradient-to-r from-sky-400 via-indigo-400 to-sky-400 relative transition-all duration-75"
           style={{ width: `${progressPercent}%` }}
@@ -122,21 +137,20 @@ export function MiniPlayer({ onOpenNote }) {
             )}
 
             {/* Quick Note Button */}
-            {onOpenNote && (
-              <button
-                type="button"
-                onClick={() => onOpenNote(currentRecording)}
-                className={`flex items-center space-x-1 text-[11px] px-1.5 py-0.2 rounded transition ${
-                  currentRecording.note_content
-                    ? 'text-sky-400 hover:text-sky-300 bg-sky-950/60'
-                    : 'text-slate-500 hover:text-slate-300'
-                }`}
-                title={currentRecording.note_content || 'Add Note'}
-              >
-                <FileText className="w-3 h-3" />
-                <span>{currentRecording.note_content ? 'Note' : '+Note'}</span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => openNoteModal(currentRecording)}
+              className={`flex items-center space-x-1 text-[11px] px-2 py-0.5 rounded-lg transition ${
+                currentRecording.note_content
+                  ? 'text-sky-300 hover:text-sky-200 bg-sky-950/80 border border-sky-800/60'
+                  : 'text-slate-400 hover:text-slate-200 bg-vault-900 hover:bg-vault-850 border border-vault-800'
+              }`}
+              title={currentRecording.note_content || 'Add Note'}
+            >
+              <FileText className="w-3 h-3 text-sky-400" />
+              <span>{currentRecording.note_content ? 'Note' : '+Note'}</span>
+            </button>
+
           </div>
         </div>
       </div>

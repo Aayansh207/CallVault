@@ -7,7 +7,7 @@ import { PeopleView } from '../features/people/PeopleView';
 import { FavoritesView } from '../features/favorites/FavoritesView';
 import { SettingsView } from '../features/settings/SettingsView';
 
-export function AppRoutes({ searchQuery, setSearchQuery, onOpenNote, onOpenDelete }) {
+export function AppRoutes({ searchQuery, setSearchQuery }) {
   return (
     <Routes>
       <Route
@@ -16,8 +16,6 @@ export function AppRoutes({ searchQuery, setSearchQuery, onOpenNote, onOpenDelet
           <AppShell
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
-            onOpenNote={onOpenNote}
-            onOpenDelete={onOpenDelete}
           />
         }
       >
@@ -27,43 +25,18 @@ export function AppRoutes({ searchQuery, setSearchQuery, onOpenNote, onOpenDelet
             <LibraryView
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
-              onOpenNote={onOpenNote}
-              onOpenDelete={onOpenDelete}
             />
           }
         />
-        <Route
-          path="timeline"
-          element={
-            <TimelineView
-              onOpenNote={onOpenNote}
-              onOpenDelete={onOpenDelete}
-            />
-          }
-        />
-        <Route
-          path="people"
-          element={
-            <PeopleView
-              onOpenNote={onOpenNote}
-              onOpenDelete={onOpenDelete}
-            />
-          }
-        />
-        <Route
-          path="favorites"
-          element={
-            <FavoritesView
-              onOpenNote={onOpenNote}
-              onOpenDelete={onOpenDelete}
-            />
-          }
-        />
+        <Route path="timeline" element={<TimelineView />} />
+        <Route path="people" element={<PeopleView />} />
+        <Route path="favorites" element={<FavoritesView />} />
         <Route path="settings" element={<SettingsView />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   );
 }
+
 
 export default AppRoutes;

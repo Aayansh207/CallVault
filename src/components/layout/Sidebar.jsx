@@ -13,7 +13,7 @@ import {
 import { useApp } from '../../context/AppContext';
 
 export function Sidebar() {
-  const { stats, scanningState, startScan, settings } = useApp();
+  const { stats, scanningState, startScan, settings, openMergeModal } = useApp();
 
   const navItems = [
     {
@@ -42,27 +42,11 @@ export function Sidebar() {
   ];
 
   return (
-    <aside className="w-64 bg-vault-950 border-r border-vault-850 flex flex-col justify-between select-none h-full">
-      {/* Top Header / Branding */}
-      <div>
-        <div className="h-16 flex items-center px-6 border-b border-vault-850/60 pt-4">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-sky-500/20">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-            <div>
-              <span className="font-bold text-sm tracking-wide text-slate-100 flex items-center space-x-1.5">
-                <span>CallVault</span>
-              </span>
-              <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
-                Personal Vault
-              </p>
-            </div>
-          </div>
-        </div>
-
+    <aside className="w-64 bg-vault-950 border-r border-vault-850 flex flex-col justify-between select-none h-full flex-shrink-0">
+      {/* Navigation */}
+      <div className="py-4">
         {/* Main Navigation */}
-        <div className="px-3 py-5">
+        <div className="px-3">
           <p className="px-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
             Library
           </p>
@@ -77,8 +61,8 @@ export function Sidebar() {
                   className={({ isActive }) =>
                     `flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${
                       isActive
-                        ? 'bg-sky-500/15 text-sky-400 font-semibold shadow-sm'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-vault-900'
+                        ? 'bg-sky-500/15 text-sky-400 font-semibold shadow-sm border border-sky-500/20'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-vault-900 border border-transparent'
                     }`
                   }
                 >
@@ -97,14 +81,20 @@ export function Sidebar() {
           </nav>
         </div>
 
-        {/* Notes Quick Access */}
-        <div className="px-3 pt-1">
+        {/* Insights Section */}
+        <div className="px-3 pt-5">
           <p className="px-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
             Insights
           </p>
           <NavLink
             to="/?filter=notes"
-            className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-vault-900 transition"
+            className={({ isActive }) =>
+              `flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition ${
+                isActive
+                  ? 'bg-sky-500/15 text-sky-400 font-semibold border border-sky-500/20'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-vault-900 border border-transparent'
+              }`
+            }
           >
             <div className="flex items-center space-x-3">
               <FileText className="w-4 h-4 text-sky-400 flex-shrink-0" />
@@ -117,7 +107,25 @@ export function Sidebar() {
             )}
           </NavLink>
         </div>
+
+        {/* Tools Section */}
+        <div className="px-3 pt-5">
+          <p className="px-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+            Tools
+          </p>
+          <button
+            type="button"
+            onClick={() => openMergeModal(null)}
+            className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:text-sky-300 hover:bg-vault-900 border border-transparent hover:border-vault-800 transition text-left"
+          >
+            <div className="flex items-center space-x-3">
+              <GitMerge className="w-4 h-4 text-sky-400 flex-shrink-0" />
+              <span>Merge Contacts</span>
+            </div>
+          </button>
+        </div>
       </div>
+
 
       {/* Bottom Section */}
       <div className="p-3 border-t border-vault-850/80 space-y-1">

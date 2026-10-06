@@ -10,6 +10,15 @@
   }
 }
 
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag-region {
+  -webkit-app-region: no-drag;
+}
+
+
 /* Custom Sleek Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

@@ -19,6 +19,7 @@ import {
   Folder,
 } from 'lucide-react';
 import { usePlayer } from '../../context/PlayerContext';
+import { useApp } from '../../context/AppContext';
 import { PLAYBACK_SPEEDS } from '../../lib/constants';
 import {
   formatDuration,
@@ -32,7 +33,8 @@ import {
 import { Badge } from '../common/Badge';
 import { api } from '../../lib/ipc';
 
-export function FullPlayerModal({ onOpenNote, onOpenTag }) {
+export function FullPlayerModal() {
+  const { openNoteModal } = useApp();
   const {
     currentRecording,
     isPlaying,
@@ -264,7 +266,7 @@ export function FullPlayerModal({ onOpenNote, onOpenTag }) {
           <div className="flex items-center space-x-3 text-xs">
             <button
               type="button"
-              onClick={() => onOpenNote(currentRecording)}
+              onClick={() => openNoteModal(currentRecording)}
               className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-vault-800/90 hover:bg-vault-750 text-slate-200 border border-vault-700/60 transition shadow-sm"
             >
               <FileText className="w-4 h-4 text-sky-400" />

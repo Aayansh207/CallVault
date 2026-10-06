@@ -15,20 +15,17 @@ import {
   getInitials,
   getAvatarColor,
 } from '../../lib/formatters';
+import { useApp } from '../../context/AppContext';
 import { PersonDetailView } from './PersonDetailView';
-import { MergeContactsModal } from '../../components/people/MergeContactsModal';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { EmptyState } from '../../components/common/EmptyState';
 
-export function PeopleView({ onOpenNote, onOpenDelete }) {
+export function PeopleView() {
+  const { openMergeModal, refreshTrigger } = useApp();
   const [people, setPeople] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedPerson, setSelectedPerson] = useState(null);
-
-  // Merge modal state
-  const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
-  const [mergeSourceContact, setMergeSourceContact] = useState(null);
 
   const loadPeople = async () => {
     try {
@@ -44,11 +41,10 @@ export function PeopleView({ onOpenNote, onOpenDelete }) {
 
   useEffect(() => {
     loadPeople();
-  }, []);
+  }, [refreshTrigger]);
 
   const handleOpenMerge = (contact = null) => {
-    setMergeSourceContact(contact);
-    setIsMergeModalOpen(true);
+    openMergeModal(contact);
   };
 
   if (selectedPerson) {
@@ -56,12 +52,11 @@ export function PeopleView({ onOpenNote, onOpenDelete }) {
       <PersonDetailView
         person={selectedPerson}
         onBack={() => setSelectedPerson(null)}
-        onOpenNote={onOpenNote}
-        onOpenDelete={onOpenDelete}
         onOpenMerge={() => handleOpenMerge(selectedPerson)}
       />
     );
   }
+
 
   const filteredPeople = people.filter((p) => {
     const term = search.toLowerCase();
@@ -189,14 +184,7 @@ export function PeopleView({ onOpenNote, onOpenDelete }) {
           </div>
         )}
       </div>
-
-      {/* Merge Modal */}
-      <MergeContactsModal
-        isOpen={isMergeModalOpen}
-        onClose={() => setIsMergeModalOpen(false)}
-        initialSourceContact={mergeSourceContact}
-        onMerged={loadPeople}
-      />
     </div>
   );
 }
+

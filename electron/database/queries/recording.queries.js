@@ -152,10 +152,20 @@ function buildFilterClause(options = {}) {
   }
 
   // Person filter
-  if (options.person) {
+  if (options.personName && options.phoneNumber) {
+    whereClauses.push('(r.person_name = ? OR r.phone_number = ?)');
+    params.push(options.personName, options.phoneNumber);
+  } else if (options.personName) {
+    whereClauses.push('r.person_name = ?');
+    params.push(options.personName);
+  } else if (options.phoneNumber) {
+    whereClauses.push('r.phone_number = ?');
+    params.push(options.phoneNumber);
+  } else if (options.person) {
     whereClauses.push('(r.person_name = ? OR r.phone_number = ?)');
     params.push(options.person, options.person);
   }
+
 
   // Date filter (exact day YYYY-MM-DD)
   if (options.date) {

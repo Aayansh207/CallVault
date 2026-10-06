@@ -48,14 +48,21 @@ export function MergeContactsModal({
     if (isOpen) {
       loadContacts();
       setError(null);
+      setSourceContact(initialSourceContact || null);
+      setTargetContact(null);
+      setFinalName(initialSourceContact?.person_name || initialSourceContact?.identifier || '');
+      setFinalPhone(initialSourceContact?.phone_number || '');
+      setSourceSearch('');
+      setTargetSearch('');
+    } else {
+      setSourceContact(null);
+      setTargetContact(null);
+      setFinalName('');
+      setFinalPhone('');
+      setError(null);
     }
-  }, [isOpen]);
+  }, [isOpen, initialSourceContact]);
 
-  useEffect(() => {
-    if (initialSourceContact) {
-      setSourceContact(initialSourceContact);
-    }
-  }, [initialSourceContact]);
 
   useEffect(() => {
     if (sourceContact || targetContact) {

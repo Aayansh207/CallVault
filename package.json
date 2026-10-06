@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "concurrently -k -p \"[{name}]\" -n \"VITE,ELEC\" -c \"cyan,magenta\" \"npm run dev:vite\" \"npm run dev:electron\"",
     "dev:vite": "vite",
-    "dev:electron": "wait-on tcp:5173 && electron .",
+    "dev:electron": "wait-on tcp:5173 && node electron/dev-runner.js",
     "build": "vite build",
     "preview": "vite preview",
     "start": "cross-env NODE_ENV=production electron .",

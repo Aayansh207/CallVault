@@ -97,21 +97,28 @@ class RecordingService {
   // Notes
   saveNote(recordingId, content) {
     const db = getDatabase();
-    const existing = db.prepare('SELECT id FROM notes WHERE recording_id = ?').get(recordingId);
-    if (existing) {
-      db.prepare(`
-        UPDATE notes 
-        SET content = ?, updated_at = datetime('now') 
-        WHERE recording_id = ?
-      `).run(content, recordingId);
+    const trimmed = (content || '').trim();
+
+    if (!trimmed) {
+      db.prepare('DELETE FROM notes WHERE recording_id = ?').run(recordingId);
     } else {
-      db.prepare(`
-        INSERT INTO notes (recording_id, content, created_at, updated_at) 
-        VALUES (?, ?, datetime('now'), datetime('now'))
-      `).run(recordingId, content);
+      const existing = db.prepare('SELECT id FROM notes WHERE recording_id = ?').get(recordingId);
+      if (existing) {
+        db.prepare(`
+          UPDATE notes 
+          SET content = ?, updated_at = datetime('now') 
+          WHERE recording_id = ?
+        `).run(trimmed, recordingId);
+      } else {
+        db.prepare(`
+          INSERT INTO notes (recording_id, content, created_at, updated_at) 
+          VALUES (?, ?, datetime('now'), datetime('now'))
+        `).run(recordingId, trimmed);
+      }
     }
     return recordingRepository.findById(recordingId);
   }
 }
+
 
 module.exports = new RecordingService();

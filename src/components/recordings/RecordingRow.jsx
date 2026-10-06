@@ -14,6 +14,7 @@ import {
   MessageSquarePlus,
 } from 'lucide-react';
 import { usePlayer } from '../../context/PlayerContext';
+import { useApp } from '../../context/AppContext';
 import { api } from '../../lib/ipc';
 import {
   formatDuration,
@@ -32,6 +33,7 @@ export function RecordingRow({
   onUpdated,
 }) {
   const { currentRecording, isPlaying, playRecording, togglePlayPause, toggleFavorite } = usePlayer();
+  const { openNoteModal, openDeleteModal } = useApp();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -69,7 +71,8 @@ export function RecordingRow({
 
   const handleNoteClick = (e) => {
     e.stopPropagation();
-    onOpenNote(recording);
+    if (onOpenNote) onOpenNote(recording);
+    else openNoteModal(recording);
   };
 
   const handleRevealInFinder = async (e) => {
@@ -272,7 +275,8 @@ export function RecordingRow({
                 type="button"
                 onClick={() => {
                   setMenuOpen(false);
-                  onOpenNote(recording);
+                  if (onOpenNote) onOpenNote(recording);
+                  else openNoteModal(recording);
                 }}
                 className="w-full flex items-center space-x-2.5 px-3 py-2 hover:bg-vault-800 text-left"
               >
@@ -317,13 +321,15 @@ export function RecordingRow({
                 type="button"
                 onClick={() => {
                   setMenuOpen(false);
-                  onOpenDelete(recording);
+                  if (onOpenDelete) onOpenDelete(recording);
+                  else openDeleteModal(recording);
                 }}
                 className="w-full flex items-center space-x-2.5 px-3 py-2 hover:bg-rose-950/40 text-rose-400 text-left"
               >
                 <Trash2 className="w-4 h-4" />
                 <span>Delete...</span>
               </button>
+
             </div>
           )}
         </div>

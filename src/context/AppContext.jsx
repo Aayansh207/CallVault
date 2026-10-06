@@ -28,6 +28,38 @@ export function AppProvider({ children }) {
   const [selectedTag, setSelectedTag] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  // Global modal state
+  const [activeNoteRecording, setActiveNoteRecording] = useState(null);
+  const [activeDeleteRecording, setActiveDeleteRecording] = useState(null);
+  const [activeMergeContact, setActiveMergeContact] = useState(null);
+  const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
+
+  const openNoteModal = useCallback((recording) => {
+    setActiveNoteRecording(recording);
+  }, []);
+
+  const closeNoteModal = useCallback(() => {
+    setActiveNoteRecording(null);
+  }, []);
+
+  const openDeleteModal = useCallback((recording) => {
+    setActiveDeleteRecording(recording);
+  }, []);
+
+  const closeDeleteModal = useCallback(() => {
+    setActiveDeleteRecording(null);
+  }, []);
+
+  const openMergeModal = useCallback((contact = null) => {
+    setActiveMergeContact(contact);
+    setIsMergeModalOpen(true);
+  }, []);
+
+  const closeMergeModal = useCallback(() => {
+    setIsMergeModalOpen(false);
+    setActiveMergeContact(null);
+  }, []);
+
   const refreshData = useCallback(() => {
     setRefreshTrigger((prev) => prev + 1);
   }, []);
@@ -170,6 +202,17 @@ export function AppProvider({ children }) {
     startScan,
     cancelScan,
     updateSetting,
+    // Modals
+    activeNoteRecording,
+    openNoteModal,
+    closeNoteModal,
+    activeDeleteRecording,
+    openDeleteModal,
+    closeDeleteModal,
+    activeMergeContact,
+    isMergeModalOpen,
+    openMergeModal,
+    closeMergeModal,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

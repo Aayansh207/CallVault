@@ -288,41 +288,54 @@ class RecordingRepository {
       const finalName = (finalDetails.personName || targetContact.person_name || sourceContact.person_name || '').trim();
       const finalPhone = (finalDetails.phoneNumber || targetContact.phone_number || sourceContact.phone_number || '').trim();
 
-      const sourceId = sourceContact.identifier || sourceContact.person_name || sourceContact.phone_number;
-      const targetId = targetContact.identifier || targetContact.person_name || targetContact.phone_number;
+      const candidateMatchers = new Set();
+      if (sourceContact.identifier) candidateMatchers.add(sourceContact.identifier);
+      if (sourceContact.person_name) candidateMatchers.add(sourceContact.person_name);
+      if (sourceContact.phone_number) candidateMatchers.add(sourceContact.phone_number);
+      if (targetContact.identifier) candidateMatchers.add(targetContact.identifier);
+      if (targetContact.person_name) candidateMatchers.add(targetContact.person_name);
+      if (targetContact.phone_number) candidateMatchers.add(targetContact.phone_number);
 
-      const stmt = this.db.prepare(`
+      const matchArray = Array.from(candidateMatchers).filter(Boolean);
+      if (matchArray.length === 0) {
+        return { success: false, updatedCount: 0 };
+      }
+
+      const placeholders = matchArray.map(() => '?').join(', ');
+      const sql = `
         UPDATE recordings
         SET person_name = ?,
             phone_number = CASE WHEN ? != '' THEN ? ELSE phone_number END,
             updated_at = datetime('now')
-        WHERE (person_name = ? OR phone_number = ? OR COALESCE(person_name, phone_number) = ?)
-           OR (person_name = ? OR phone_number = ? OR COALESCE(person_name, phone_number) = ?)
-      `);
+        WHERE person_name IN (${placeholders})
+           OR phone_number IN (${placeholders})
+           OR COALESCE(person_name, phone_number) IN (${placeholders})
+      `;
+
+      const stmt = this.db.prepare(sql);
+      const params = [
+        finalName || null,
+        finalPhone,
+        finalPhone || null,
+        ...matchArray,
+        ...matchArray,
+        ...matchArray,
+      ];
 
       const tx = this.db.transaction(() => {
-        const res = stmt.run(
-          finalName || null,
-          finalPhone,
-          finalPhone || null,
-          sourceId,
-          sourceId,
-          sourceId,
-          targetId,
-          targetId,
-          targetId
-        );
+        const res = stmt.run(...params);
         return res.changes;
       });
 
       const updatedCount = tx();
-      logger.info(`Successfully merged contacts: '${sourceId}' and '${targetId}' into '${finalName}' (${updatedCount} calls updated)`);
+      logger.info(`Successfully merged contacts into '${finalName}' (${updatedCount} calls updated)`);
       return { success: true, updatedCount };
     } catch (err) {
       logger.error(`Failed to merge contacts: ${err.message}`);
       throw err;
     }
   }
+
 
   getTimelineCounts(yearMonthPrefix) {
     try {

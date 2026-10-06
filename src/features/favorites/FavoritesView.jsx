@@ -6,8 +6,8 @@ import { RecordingRow } from '../../components/recordings/RecordingRow';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { EmptyState } from '../../components/common/EmptyState';
 
-export function FavoritesView({ onOpenNote, onOpenDelete }) {
-  const { refreshTrigger } = useApp();
+export function FavoritesView() {
+  const { refreshTrigger, openNoteModal, openDeleteModal } = useApp();
   const [recordings, setRecordings] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -58,8 +58,8 @@ export function FavoritesView({ onOpenNote, onOpenDelete }) {
               key={recording.id}
               recording={recording}
               playlist={recordings}
-              onOpenNote={onOpenNote}
-              onOpenDelete={onOpenDelete}
+              onOpenNote={openNoteModal}
+              onOpenDelete={openDeleteModal}
               onUpdated={loadFavorites}
             />
           ))
@@ -68,3 +68,4 @@ export function FavoritesView({ onOpenNote, onOpenDelete }) {
     </div>
   );
 }
+

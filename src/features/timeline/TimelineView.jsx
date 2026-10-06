@@ -6,12 +6,14 @@ import {
   Clock,
   Mic2,
 } from 'lucide-react';
+import { useApp } from '../../context/AppContext';
 import { api } from '../../lib/ipc';
 import { RecordingRow } from '../../components/recordings/RecordingRow';
 import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 
-export function TimelineView({ onOpenNote, onOpenDelete }) {
+export function TimelineView() {
+  const { openNoteModal, openDeleteModal, refreshTrigger } = useApp();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDayStr, setSelectedDayStr] = useState(() => {
     return new Date().toISOString().split('T')[0];
@@ -19,6 +21,7 @@ export function TimelineView({ onOpenNote, onOpenDelete }) {
   const [monthCounts, setMonthCounts] = useState({});
   const [dayRecordings, setDayRecordings] = useState([]);
   const [loading, setLoading] = useState(false);
+
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth(); // 0-indexed
@@ -215,8 +218,8 @@ export function TimelineView({ onOpenNote, onOpenDelete }) {
                 key={recording.id}
                 recording={recording}
                 playlist={dayRecordings}
-                onOpenNote={onOpenNote}
-                onOpenDelete={onOpenDelete}
+                onOpenNote={openNoteModal}
+                onOpenDelete={openDeleteModal}
                 onUpdated={() => {
                   api.recordings
                     .list({
@@ -228,6 +231,7 @@ export function TimelineView({ onOpenNote, onOpenDelete }) {
                 }}
               />
             ))
+
           )}
         </div>
       </div>
