@@ -53,6 +53,14 @@ function createWindow() {
     mainWindow.show();
   });
 
+  mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+    logger.info(`[Renderer Console] [Level ${level}] ${message} (${sourceId}:${line})`);
+  });
+
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    logger.error(`[Renderer Load Failed] ${errorCode}: ${errorDescription} (${validatedURL})`);
+  });
+
   const isDev = process.env.NODE_ENV !== 'production' && !app.isPackaged;
 
   if (isDev) {
@@ -62,9 +70,10 @@ function createWindow() {
       logger.error('Failed to load Vite URL, will retry...', { error: err.message });
       setTimeout(() => mainWindow.loadURL(devServerUrl), 1000);
     });
-    // Open DevTools in dev mode if needed
-    // mainWindow.webContents.openDevTools({ mode: 'detach' });
+    // Open DevTools in dev mode
+    mainWindow.webContents.openDevTools({ mode: 'detach' });
   } else {
+
     const indexPath = path.join(__dirname, '../dist/index.html');
     mainWindow.loadFile(indexPath);
   }

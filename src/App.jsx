@@ -4,8 +4,10 @@ import { AppProvider, useApp } from './context/AppContext';
 import { PlayerProvider } from './context/PlayerContext';
 import { AppRoutes } from './router/router';
 import { OnboardingView } from './features/onboarding/OnboardingView';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 function AppContent() {
+
   const { hasFolder, stats } = useApp();
   const [onboardingDismissed, setOnboardingDismissed] = useState(() => {
     try {
@@ -43,12 +45,15 @@ function AppContent() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AppProvider>
-        <PlayerProvider>
-          <AppContent />
-        </PlayerProvider>
-      </AppProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AppProvider>
+          <PlayerProvider>
+            <AppContent />
+          </PlayerProvider>
+        </AppProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
+

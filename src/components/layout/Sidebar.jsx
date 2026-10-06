@@ -9,7 +9,9 @@ import {
   FolderSync,
   FileText,
   ShieldCheck,
+  GitMerge,
 } from 'lucide-react';
+
 import { useApp } from '../../context/AppContext';
 
 export function Sidebar() {
