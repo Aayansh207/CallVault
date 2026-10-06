@@ -1,0 +1,12 @@
+/* Dedicated Player Styling & Visualizers */
+
+.player-waveform-bar {
+  transition: height 0.15s ease-in-out, background-color 0.15s ease-in-out;
+}
+
+.player-glass-card {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(51, 65, 85, 0.4);
+}

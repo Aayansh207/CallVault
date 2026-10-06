@@ -1,0 +1,15 @@
+node_modules
+dist
+dist-electron
+out
+.DS_Store
+*.local
+*.log
+.env
+.env.local
+callvault.db
+callvault.db-journal
+callvault.db-wal
+callvault.db-shm
+test-recordings
+scratch
