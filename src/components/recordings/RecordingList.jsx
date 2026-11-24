@@ -89,19 +89,19 @@ export function RecordingList({ recordings, groupByDate, searchHighlight, listKe
 
   return (
     <div className="list-frame">
-    <div
-      id={regionId}
-      className="workspace-scroll recording-scroll"
-      ref={viewport}
-      onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
-      tabIndex={0}
-      role="region"
-      aria-label="Recordings"
-      aria-busy={busy}
-    >
-      {children || <div className="relative" style={{ height: totalHeight }}>{visible}</div>}
-    </div>
-    <ListScrollbar viewport={viewport} scrollTop={scrollTop} contentHeight={totalHeight} regionId={regionId} />
+      <div
+        id={regionId}
+        className="workspace-scroll recording-scroll"
+        ref={viewport}
+        onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+        tabIndex={0}
+        role="region"
+        aria-label="Recordings"
+        aria-busy={busy}
+      >
+        {children || <div className="relative" style={{ height: totalHeight }}>{visible}</div>}
+      </div>
+      <ListScrollbar viewport={viewport} scrollTop={scrollTop} contentHeight={totalHeight} regionId={regionId} />
     </div>
   );
 }

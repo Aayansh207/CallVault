@@ -77,8 +77,8 @@ export function LibraryView({ searchQuery }) {
 
       <div className="library-results">
         <div className="history-caption" role="status">
-        <span>{searchQuery ? `Results for “${searchQuery}”` : 'Call history'}</span>
-        <small>{updating ? 'Updating…' : error ? 'Could not load recordings' : `${recordings.length.toLocaleString()} shown`}</small>
+          <span>{searchQuery ? `Results for “${searchQuery}”` : 'Call history'}</span>
+          <small>{updating ? 'Updating…' : error ? 'Could not load recordings' : `${recordings.length.toLocaleString()} shown`}</small>
         </div>
         <SortSelector sortOption={sort} onSortChange={setSort} />
       </div>
