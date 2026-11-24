@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   X,
   Play,
@@ -15,7 +15,6 @@ import {
   Clock,
   HardDrive,
   FileText,
-  Tag as TagIcon,
   Folder,
 } from 'lucide-react';
 import { usePlayer, usePlayerTime } from '../../context/PlayerContext';
@@ -27,10 +26,7 @@ import {
   formatDate,
   formatTime,
   getInitials,
-  getAvatarColor,
-  maskPhoneNumber,
 } from '../../lib/formatters';
-import { Badge } from '../common/Badge';
 import { api } from '../../lib/ipc';
 
 export function FullPlayerModal() {
@@ -56,8 +52,6 @@ export function FullPlayerModal() {
   } = usePlayer();
   const currentTime = usePlayerTime();
 
-  const [activeTab, setActiveTab] = useState('player'); // 'player' | 'notes' | 'details'
-
   if (!isFullPlayerOpen || !currentRecording) return null;
 
   const backSeconds = Number(settings.skip_backward_seconds) || 15;
@@ -75,7 +69,7 @@ export function FullPlayerModal() {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-      <div className="bg-vault-900 border border-vault-700/80 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-modal">
+      <div className="player-sheet animate-modal" role="dialog" aria-modal="true" aria-labelledby="player-title" onKeyDown={event => { if (event.key === 'Escape') closeFullPlayer(); }}>
         {/* Top bar */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-vault-800">
           <div className="flex items-center space-x-2">
@@ -99,6 +93,8 @@ export function FullPlayerModal() {
             </button>
             <button
               type="button"
+              aria-label="Close player"
+              autoFocus
               onClick={closeFullPlayer}
               className="p-2 rounded-xl hover:bg-vault-800 text-slate-400 hover:text-slate-100 transition"
             >
@@ -108,27 +104,9 @@ export function FullPlayerModal() {
         </div>
 
         {/* Content area */}
-        <div className="workspace-scroll p-4 sm:p-8 flex flex-col items-center text-center">
-          {/* Big Avatar */}
-          <div
-            className={`w-28 h-28 rounded-3xl bg-gradient-to-br ${getAvatarColor(
-              displayName
-            )} flex items-center justify-center text-white text-3xl font-bold shadow-2xl shadow-sky-950/40 mb-5 relative`}
-          >
-            {isPlaying ? (
-              <div className="flex items-end space-x-1 h-10">
-                <span className="w-2 bg-white rounded-full animate-wave-1" />
-                <span className="w-2 bg-white rounded-full animate-wave-2" />
-                <span className="w-2 bg-white rounded-full animate-wave-3" />
-                <span className="w-2 bg-white rounded-full animate-wave-4" />
-              </div>
-            ) : (
-              <span>{getInitials(displayName)}</span>
-            )}
-          </div>
-
-          {/* Contact Details */}
-          <h2 className="text-2xl font-bold text-slate-100 mb-1">{displayName}</h2>
+        <div className="player-body workspace-scroll" role="region" aria-label="Player controls" tabIndex={0}>
+          <div className="player-disc" aria-hidden="true"><span>{getInitials(displayName)}</span></div>
+          <h2 id="player-title">{displayName}</h2>
 
           {currentRecording.phone_number && (
             <p className="flex items-center space-x-1.5 text-sm text-slate-400 font-mono mb-2">
@@ -156,11 +134,14 @@ export function FullPlayerModal() {
               <input
                 type="range"
                 min={0}
-                max={duration || 100}
+                aria-label="Playback position"
+                max={duration || 1}
+                disabled={!duration}
+                style={{ '--progress': `${progressPercent}%` }}
                 step={0.1}
                 value={currentTime}
                 onChange={handleSeek}
-                className="w-full h-2 bg-vault-800 rounded-lg cursor-pointer"
+                className="player-seek w-full"
               />
             </div>
             <div className="flex justify-between text-xs font-mono text-slate-400">
@@ -192,6 +173,7 @@ export function FullPlayerModal() {
 
             <button
               type="button"
+              aria-label={isPlaying ? 'Pause playback' : 'Resume playback'}
               onClick={togglePlayPause}
               className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-sky-500 to-indigo-500 hover:from-sky-400 hover:to-indigo-400 text-slate-950 flex items-center justify-center font-bold shadow-xl shadow-sky-500/25 hover:scale-105 active:scale-95 transition"
             >
@@ -244,6 +226,7 @@ export function FullPlayerModal() {
           <div className="flex items-center space-x-3 w-64 mb-6">
             <button
               type="button"
+              aria-label={isMuted ? 'Unmute' : 'Mute'}
               onClick={toggleMute}
               className="p-2 text-slate-400 hover:text-slate-200 transition"
             >
@@ -257,6 +240,7 @@ export function FullPlayerModal() {
               type="range"
               min={0}
               max={1}
+              aria-label="Player volume"
               step={0.05}
               value={isMuted ? 0 : volume}
               onChange={(e) => changeVolume(parseFloat(e.target.value))}
