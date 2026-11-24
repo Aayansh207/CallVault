@@ -18,7 +18,7 @@ import {
   Tag as TagIcon,
   Folder,
 } from 'lucide-react';
-import { usePlayer } from '../../context/PlayerContext';
+import { usePlayer, usePlayerTime } from '../../context/PlayerContext';
 import { useApp } from '../../context/AppContext';
 import { PLAYBACK_SPEEDS } from '../../lib/constants';
 import {
@@ -34,11 +34,10 @@ import { Badge } from '../common/Badge';
 import { api } from '../../lib/ipc';
 
 export function FullPlayerModal() {
-  const { openNoteModal } = useApp();
+  const { openNoteModal, settings } = useApp();
   const {
     currentRecording,
     isPlaying,
-    currentTime,
     duration,
     playbackRate,
     volume,
@@ -55,11 +54,14 @@ export function FullPlayerModal() {
     playPrevious,
     toggleFavorite,
   } = usePlayer();
+  const currentTime = usePlayerTime();
 
   const [activeTab, setActiveTab] = useState('player'); // 'player' | 'notes' | 'details'
 
   if (!isFullPlayerOpen || !currentRecording) return null;
 
+  const backSeconds = Number(settings.skip_backward_seconds) || 15;
+  const forwardSeconds = Number(settings.skip_forward_seconds) || 30;
   const displayName = currentRecording.person_name || currentRecording.phone_number || 'Unknown';
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
@@ -72,7 +74,7 @@ export function FullPlayerModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
       <div className="bg-vault-900 border border-vault-700/80 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-modal">
         {/* Top bar */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-vault-800">
@@ -85,7 +87,7 @@ export function FullPlayerModal() {
           <div className="flex items-center space-x-2">
             <button
               type="button"
-              onClick={toggleFavorite}
+              onClick={() => toggleFavorite().catch(console.error)}
               className="p-2 rounded-xl hover:bg-vault-800 text-slate-400 hover:text-amber-400 transition"
               title="Favorite"
             >
@@ -98,7 +100,7 @@ export function FullPlayerModal() {
             <button
               type="button"
               onClick={closeFullPlayer}
-              className="p-2 rounded-xl hover:bg-vault-800 text-slate-400 hover:text-white transition"
+              className="p-2 rounded-xl hover:bg-vault-800 text-slate-400 hover:text-slate-100 transition"
             >
               <X className="w-5 h-5" />
             </button>
@@ -106,7 +108,7 @@ export function FullPlayerModal() {
         </div>
 
         {/* Content area */}
-        <div className="p-8 flex-1 overflow-y-auto flex flex-col items-center text-center">
+        <div className="workspace-scroll p-4 sm:p-8 flex flex-col items-center text-center">
           {/* Big Avatar */}
           <div
             className={`w-28 h-28 rounded-3xl bg-gradient-to-br ${getAvatarColor(
@@ -180,12 +182,12 @@ export function FullPlayerModal() {
 
             <button
               type="button"
-              onClick={() => skip(-15)}
-              className="p-3 rounded-2xl text-slate-300 hover:text-white hover:bg-vault-800 transition flex flex-col items-center"
-              title="Skip -15s"
+              onClick={() => skip(-backSeconds)}
+              className="p-3 rounded-2xl text-slate-300 hover:text-slate-100 hover:bg-vault-800 transition flex flex-col items-center"
+              title={`Skip back ${backSeconds}s`}
             >
               <RotateCcw className="w-5 h-5" />
-              <span className="text-[10px] mt-0.5 font-mono">15s</span>
+              <span className="text-[10px] mt-0.5 font-mono">{backSeconds}s</span>
             </button>
 
             <button
@@ -202,12 +204,12 @@ export function FullPlayerModal() {
 
             <button
               type="button"
-              onClick={() => skip(30)}
-              className="p-3 rounded-2xl text-slate-300 hover:text-white hover:bg-vault-800 transition flex flex-col items-center"
-              title="Skip +30s"
+              onClick={() => skip(forwardSeconds)}
+              className="p-3 rounded-2xl text-slate-300 hover:text-slate-100 hover:bg-vault-800 transition flex flex-col items-center"
+              title={`Skip forward ${forwardSeconds}s`}
             >
               <RotateCw className="w-5 h-5" />
-              <span className="text-[10px] mt-0.5 font-mono">30s</span>
+              <span className="text-[10px] mt-0.5 font-mono">{forwardSeconds}s</span>
             </button>
 
             <button

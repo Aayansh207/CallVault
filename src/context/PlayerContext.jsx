@@ -1,9 +1,13 @@
-import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useApp } from './AppContext';
 import { api } from '../lib/ipc';
 
 const PlayerContext = createContext(null);
+const RowPlayerContext = createContext(null);
+const PlayerTimeContext = createContext(0);
 
 export function PlayerProvider({ children }) {
+  const { settings, refreshData } = useApp();
   const [currentRecording, setCurrentRecording] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -15,7 +19,10 @@ export function PlayerProvider({ children }) {
   const [playlist, setPlaylist] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const audioRef = useRef(new Audio());
+  const audioRef = useRef(null);
+  if (!audioRef.current) audioRef.current = new Audio();
+  const currentRef = useRef(null);
+  const nextRef = useRef(() => {});
   const savePositionIntervalRef = useRef(null);
 
   // Sync volume & rate to audio element
@@ -27,7 +34,7 @@ export function PlayerProvider({ children }) {
 
   // Periodic position persistence to database
   const persistPosition = useCallback((recId, time) => {
-    if (recId && time > 0) {
+    if (recId && Number.isFinite(time) && time >= 0) {
       api.recordings.updatePosition(recId, time).catch(() => {});
     }
   }, []);
@@ -37,6 +44,7 @@ export function PlayerProvider({ children }) {
     const audio = audioRef.current;
 
     const handleLoadedMetadata = () => {
+      const currentRecording = currentRef.current;
       setDuration(audio.duration || currentRecording?.duration_seconds || 0);
       setIsLoading(false);
 
@@ -56,23 +64,27 @@ export function PlayerProvider({ children }) {
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => {
       setIsPlaying(false);
-      if (currentRecording) {
-        persistPosition(currentRecording.id, audio.currentTime);
-      }
     };
 
     const handleWaiting = () => setIsLoading(true);
     const handlePlaying = () => setIsLoading(false);
 
     const handleEnded = () => {
+      const currentRecording = currentRef.current;
       setIsPlaying(false);
       if (currentRecording) {
         // Reset position on end
         persistPosition(currentRecording.id, 0);
       }
-      playNext();
+      nextRef.current();
     };
 
+    const handleError = () => {
+      setIsLoading(false);
+      setIsPlaying(false);
+    };
+
+    audio.addEventListener('error', handleError);
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('play', handlePlay);
@@ -82,6 +94,7 @@ export function PlayerProvider({ children }) {
     audio.addEventListener('ended', handleEnded);
 
     return () => {
+      audio.removeEventListener('error', handleError);
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('play', handlePlay);
@@ -90,7 +103,7 @@ export function PlayerProvider({ children }) {
       audio.removeEventListener('playing', handlePlaying);
       audio.removeEventListener('ended', handleEnded);
     };
-  }, [currentRecording, persistPosition]);
+  }, [persistPosition]);
 
   // Auto-save position every 5s while playing
   useEffect(() => {
@@ -111,52 +124,49 @@ export function PlayerProvider({ children }) {
     };
   }, [isPlaying, currentRecording, persistPosition]);
 
-  const playRecording = useCallback((recording, currentList = null) => {
-    if (!recording) return;
-
-    if (currentList && currentList.length > 0) {
-      setPlaylist(currentList);
+  const togglePlayPause = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio.src) return;
+    if (audio.paused) {
+      audio.play().catch((error) => {
+        if (error.name !== 'AbortError') console.warn(error);
+      });
+    } else {
+      audio.pause();
+      persistPosition(currentRef.current?.id, audio.currentTime);
     }
+  }, [persistPosition]);
 
-    if (currentRecording?.id === recording.id) {
-      // Toggle if already selected
+  const playRecording = useCallback((recording, currentList = null) => {
+    if (!recording?.available) return;
+    if (currentList?.length) setPlaylist(currentList);
+    const previous = currentRef.current;
+    if (previous?.id === recording.id) {
       togglePlayPause();
       return;
     }
 
     const audio = audioRef.current;
+    if (previous && !audio.ended) persistPosition(previous.id, audio.currentTime);
     audio.pause();
-
+    currentRef.current = recording;
     setCurrentRecording(recording);
     setCurrentTime(recording.playback_position || 0);
     setDuration(recording.duration_seconds || 0);
     setIsLoading(true);
+    audio.src = api.toAudioUrl(recording.file_path);
 
-    const audioUrl = api.toAudioUrl(recording.file_path);
-    audio.src = audioUrl;
-    audio.load();
-
-    audio.play().catch((err) => {
-      console.warn('Playback error or blocked by autoplay policy:', err);
+    audio.play().catch((error) => {
+      if (error.name === 'AbortError' || currentRef.current?.id !== recording.id) return;
+      console.warn('Playback failed:', error);
       setIsPlaying(false);
       setIsLoading(false);
     });
-  }, [currentRecording]);
-
-  const togglePlayPause = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio.src) return;
-
-    if (audio.paused) {
-      audio.play().catch((e) => console.warn(e));
-    } else {
-      audio.pause();
-    }
-  }, []);
+  }, [persistPosition, togglePlayPause]);
 
   const seek = useCallback((seconds) => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio.src || !Number.isFinite(seconds)) return;
     const clamped = Math.max(0, Math.min(seconds, audio.duration || duration));
     audio.currentTime = clamped;
     setCurrentTime(clamped);
@@ -192,38 +202,60 @@ export function PlayerProvider({ children }) {
     });
   }, [volume]);
 
-  const playNext = useCallback(() => {
-    if (!playlist || playlist.length === 0 || !currentRecording) return;
-    const currentIndex = playlist.findIndex((r) => r.id === currentRecording.id);
-    if (currentIndex !== -1 && currentIndex < playlist.length - 1) {
-      playRecording(playlist[currentIndex + 1], playlist);
+  const moveInPlaylist = useCallback((direction) => {
+    const index = playlist.findIndex((recording) => recording.id === currentRef.current?.id);
+    if (index < 0) return;
+    for (let next = index + direction; next >= 0 && next < playlist.length; next += direction) {
+      if (playlist[next].available) {
+        playRecording(playlist[next]);
+        break;
+      }
     }
-  }, [playlist, currentRecording, playRecording]);
+  }, [playlist, playRecording]);
 
-  const playPrevious = useCallback(() => {
-    if (!playlist || playlist.length === 0 || !currentRecording) return;
-    const currentIndex = playlist.findIndex((r) => r.id === currentRecording.id);
-    if (currentIndex > 0) {
-      playRecording(playlist[currentIndex - 1], playlist);
-    }
-  }, [playlist, currentRecording, playRecording]);
+  const playNext = useCallback(() => moveInPlaylist(1), [moveInPlaylist]);
+  const playPrevious = useCallback(() => moveInPlaylist(-1), [moveInPlaylist]);
+
+  useEffect(() => {
+    nextRef.current = playNext;
+  }, [playNext]);
+
+  useEffect(() => {
+    const speed = Number(settings.default_playback_speed);
+    if (speed > 0) setSpeed(speed);
+  }, [settings.default_playback_speed, setSpeed]);
+
+  const patchCurrentRecording = useCallback((updated) => {
+    if (currentRef.current?.id !== updated.id) return;
+    currentRef.current = { ...currentRef.current, ...updated };
+    setCurrentRecording(currentRef.current);
+  }, []);
 
   const toggleFavorite = useCallback(async (recording = null) => {
-    const target = recording || currentRecording;
+    const target = recording?.id ? recording : currentRef.current;
     if (!target) return;
     const newFav = target.favorite ? 0 : 1;
     const updated = await api.recordings.favorite(target.id, newFav);
-    if (currentRecording?.id === target.id) {
-      setCurrentRecording((prev) => ({ ...prev, favorite: newFav }));
-    }
+    patchCurrentRecording({ id: target.id, favorite: newFav });
+    setPlaylist((previous) => {
+      const index = previous.findIndex((item) => item.id === target.id);
+      if (index < 0) return previous;
+      const next = previous.slice();
+      next[index] = { ...next[index], favorite: newFav };
+      return next;
+    });
+    refreshData();
     return updated;
-  }, [currentRecording]);
+  }, [refreshData, patchCurrentRecording]);
 
-  const value = {
+  const rowControls = useMemo(() => ({
+    currentId: currentRecording?.id, isPlaying, playRecording, togglePlayPause, toggleFavorite,
+  }), [currentRecording?.id, isPlaying, playRecording, togglePlayPause, toggleFavorite]);
+
+  const value = useMemo(() => ({
     currentRecording,
     isPlaying,
     isLoading,
-    currentTime,
     duration,
     playbackRate,
     volume,
@@ -242,10 +274,20 @@ export function PlayerProvider({ children }) {
     toggleFavorite,
     openFullPlayer: () => setIsFullPlayerOpen(true),
     closeFullPlayer: () => setIsFullPlayerOpen(false),
-    setCurrentRecording,
-  };
+    patchCurrentRecording,
+  }), [
+    currentRecording, isPlaying, isLoading, duration, playbackRate, volume, isMuted,
+    isFullPlayerOpen, playlist, playRecording, togglePlayPause, seek, skip, setSpeed,
+    changeVolume, toggleMute, playNext, playPrevious, toggleFavorite, patchCurrentRecording,
+  ]);
 
-  return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
+  return (
+    <PlayerContext.Provider value={value}>
+      <RowPlayerContext.Provider value={rowControls}>
+        <PlayerTimeContext.Provider value={currentTime}>{children}</PlayerTimeContext.Provider>
+      </RowPlayerContext.Provider>
+    </PlayerContext.Provider>
+  );
 }
 
 export function usePlayer() {
@@ -254,4 +296,12 @@ export function usePlayer() {
     throw new Error('usePlayer must be used within PlayerProvider');
   }
   return context;
+}
+
+export function usePlayerTime() {
+  return useContext(PlayerTimeContext);
+}
+
+export function useRowPlayer() {
+  return useContext(RowPlayerContext);
 }
