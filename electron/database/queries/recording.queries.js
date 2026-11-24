@@ -127,9 +127,89 @@ const MONTH_MAP = {
   december: '12', dec: '12',
 };
 
+const monthWords = Object.keys(MONTH_MAP).join('|');
+const dayPhrase = new RegExp(
+  `(?<![\\p{L}\\p{N}])(?:(${monthWords})\\s+(\\d{1,2})|(?:([0-9]{1,2})(?:st|nd|rd|th)?\\s+)(${monthWords}))(?:st|nd|rd|th)?(?:,?\\s+(\\d{4}))?(?![\\p{L}\\p{N}])`,
+  'giu',
+);
+
+function nextDay(date) {
+  const value = new Date(`${date}T00:00:00Z`);
+  if (Number.isNaN(value.getTime()) || value.toISOString().slice(0, 10) !== date) return null;
+  value.setUTCDate(value.getUTCDate() + 1);
+  return value.toISOString().slice(0, 10);
+}
+
+function searchFilters(search, where, params) {
+  const query = String(search || '').trim().slice(0, 240);
+  if (!query) return;
+  const digits = query.replace(/\D/g, '');
+  if (digits.length >= 5 && /^[+\d().\s-]+$/.test(query) && !/^\d{4}-\d{2}(?:-\d{2})?$/.test(query)) {
+    where.push("(instr(phone_digits(r.phone_number), ?) > 0 OR instr(r.file_name, ?) > 0 OR EXISTS (SELECT 1 FROM notes n WHERE n.recording_id = r.id AND instr(n.content, ?) > 0))");
+    params.push(digits, query, query);
+    return;
+  }
+
+  function appendDate(date) {
+    const end = nextDay(date);
+    if (!end) return false;
+    where.push('(r.recorded_at >= ? AND r.recorded_at < ?)');
+    params.push(date, end);
+    return true;
+  }
+
+  // Preserve quoted terms as text even if they look like dates.
+  const terms = [];
+  let remaining = query.replace(/"([^"]+)"/g, (_, phrase) => {
+    terms.push({ text: phrase });
+    return ' ␟ ';
+  });
+  remaining = remaining.replace(dayPhrase, (phrase, monthBefore, dayAfter, dayBefore, monthAfter, year) => {
+    const month = MONTH_MAP[(monthBefore || monthAfter).toLowerCase()];
+    const day = Number(dayBefore || dayAfter);
+    if (day < 1 || day > 31) return phrase;
+    const monthDay = `${month}-${String(day).padStart(2, '0')}`;
+    if (year) {
+      if (!appendDate(`${year}-${monthDay}`)) return phrase;
+    } else {
+      where.push('substr(r.recorded_at, 6, 5) = ?');
+      params.push(monthDay);
+    }
+    return ' ';
+  });
+  terms.push(...remaining.split(/\s+/).filter((text) => text && text !== '␟').map((text) => ({ text, allowDate: true })));
+
+  for (const { text, allowDate } of terms) {
+    const term = text.normalize('NFC').toLowerCase();
+    if (allowDate && /^\d{4}-\d{2}-\d{2}$/.test(term) && appendDate(term)) continue;
+    if (allowDate && /^\d{4}-(?:0[1-9]|1[0-2])$/.test(term)) {
+      const [year, month] = term.split('-').map(Number);
+      const end = month === 12 ? `${year + 1}-01` : `${year}-${String(month + 1).padStart(2, '0')}`;
+      where.push('(r.recorded_at >= ? AND r.recorded_at < ?)');
+      params.push(term, end);
+      continue;
+    }
+
+    const lower = /[^\x00-\x7f]/.test(term) ? 'search_lower' : 'lower';
+    const conditions = [
+      ...['r.person_name', 'r.phone_number', 'r.file_name'].map((field) => `instr(${lower}(${field}), ?) > 0`),
+      `EXISTS (SELECT 1 FROM notes n WHERE n.recording_id = r.id AND instr(${lower}(n.content), ?) > 0)`,
+      `EXISTS (SELECT 1 FROM recording_tags rt JOIN tags t ON t.id = rt.tag_id WHERE rt.recording_id = r.id AND instr(${lower}(t.name), ?) > 0)`,
+    ];
+    params.push(term, term, term, term, term);
+    if (allowDate && Object.hasOwn(MONTH_MAP, term)) {
+      conditions.push('substr(r.recorded_at, 6, 2) = ?');
+      params.push(MONTH_MAP[term]);
+    } else if (allowDate && /^20\d{2}$/.test(term)) {
+      conditions.push('substr(r.recorded_at, 1, 4) = ?');
+      params.push(term);
+    }
+    where.push(`(${conditions.join(' OR ')})`);
+  }
+}
+
 /**
- * Builds dynamic WHERE clause and parameters for list / count
- * with extensive date, month name, note content, and contact search
+ * Builds dynamic WHERE clause and parameters for list / count.
  */
 function buildFilterClause(options = {}) {
   const whereClauses = [];
@@ -167,20 +247,16 @@ function buildFilterClause(options = {}) {
   }
 
 
-  // Date filter (exact day YYYY-MM-DD)
-  if (options.date) {
-    whereClauses.push("strftime('%Y-%m-%d', r.recorded_at) = ?");
-    params.push(options.date);
+  const from = options.date || options.dateFrom;
+  const through = options.date || options.dateTo;
+  if (from) {
+    whereClauses.push('r.recorded_at >= ?');
+    params.push(from);
   }
-
-  // Date range filter
-  if (options.dateFrom) {
-    whereClauses.push("r.recorded_at >= ?");
-    params.push(options.dateFrom);
-  }
-  if (options.dateTo) {
-    whereClauses.push("r.recorded_at <= ?");
-    params.push(options.dateTo);
+  if (through) {
+    const end = nextDay(through);
+    whereClauses.push(end ? 'r.recorded_at < ?' : 'r.recorded_at <= ?');
+    params.push(end || through);
   }
 
   // Tag filter
@@ -189,78 +265,7 @@ function buildFilterClause(options = {}) {
     params.push(options.tagId);
   }
 
-  // Multi-attribute search (person, phone, filename, notes, month names, dates)
-  if (options.search && options.search.trim()) {
-    const rawSearch = options.search.trim();
-    const lowerSearch = rawSearch.toLowerCase();
-    const tokens = lowerSearch.split(/\s+/).filter(Boolean);
-
-    // Check if the entire search or pairs of tokens match date formats
-    // e.g. "October 6" or "6 October" or "2026-10-06"
-    const monthAndDayMatch = lowerSearch.match(
-      /(?:(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sep|sept|october|oct|november|nov|december|dec)\s+(\d{1,2}))|(?:(\d{1,2})(?:st|nd|rd|th)?\s+(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sep|sept|october|oct|november|nov|december|dec))/i
-    );
-
-    if (monthAndDayMatch) {
-      const monthStr = monthAndDayMatch[1] || monthAndDayMatch[4];
-      const dayNum = parseInt(monthAndDayMatch[2] || monthAndDayMatch[3], 10);
-      const mm = MONTH_MAP[monthStr.toLowerCase()];
-      const dd = String(dayNum).padStart(2, '0');
-
-      if (mm && dayNum >= 1 && dayNum <= 31) {
-        whereClauses.push(
-          "(strftime('%m-%d', r.recorded_at) = ? OR r.file_name LIKE ? OR EXISTS (SELECT 1 FROM notes n WHERE n.recording_id = r.id AND n.content LIKE ?))"
-        );
-        params.push(`${mm}-${dd}`, `%${rawSearch}%`, `%${rawSearch}%`);
-        const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
-        return { whereSql, params };
-      }
-    }
-
-    // Process each token
-    for (const token of tokens) {
-      const tokenConditions = [];
-
-      // 1. Check if token is a month name
-      if (MONTH_MAP[token]) {
-        tokenConditions.push("strftime('%m', r.recorded_at) = ?");
-        params.push(MONTH_MAP[token]);
-      }
-
-      // 2. Check if token is a 4-digit year (e.g. 2024, 2025, 2026)
-      if (/^20\d{2}$/.test(token)) {
-        tokenConditions.push("strftime('%Y', r.recorded_at) = ?");
-        params.push(token);
-      }
-
-      // 3. Check if token is a 2-digit day number
-      if (/^\d{1,2}$/.test(token)) {
-        const d = parseInt(token, 10);
-        if (d >= 1 && d <= 31) {
-          tokenConditions.push("strftime('%d', r.recorded_at) = ?");
-          params.push(String(d).padStart(2, '0'));
-        }
-      }
-
-      // 4. Person name match
-      tokenConditions.push('r.person_name LIKE ?');
-      params.push(`%${token}%`);
-
-      // 5. Phone number match
-      tokenConditions.push('r.phone_number LIKE ?');
-      params.push(`%${token}%`);
-
-      // 6. File name match
-      tokenConditions.push('r.file_name LIKE ?');
-      params.push(`%${token}%`);
-
-      // 7. Note content match!
-      tokenConditions.push('EXISTS (SELECT 1 FROM notes n WHERE n.recording_id = r.id AND n.content LIKE ?)');
-      params.push(`%${token}%`);
-
-      whereClauses.push(`(${tokenConditions.join(' OR ')})`);
-    }
-  }
+  searchFilters(options.search, whereClauses, params);
 
   const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
   return { whereSql, params };

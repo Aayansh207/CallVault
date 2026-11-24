@@ -1,22 +1,24 @@
-const { ipcMain } = require('electron');
+const { ipcMain, BrowserWindow } = require('electron');
 const settingsService = require('../services/settings.service');
-const { logger } = require('../utils/logger');
+const scannerService = require('../services/scanner.service');
 
-function registerSettingsIPC(mainWindow) {
+function registerSettingsIPC() {
   ipcMain.handle('settings:get', async () => {
     return settingsService.getAll();
   });
 
   ipcMain.handle('settings:update', async (_, keyOrObj, val) => {
-    if (typeof keyOrObj === 'object') {
-      return settingsService.updateMany(keyOrObj);
+    const updates = typeof keyOrObj === 'object' && keyOrObj ? keyOrObj : { [keyOrObj]: val };
+    const settings = settingsService.updateMany(updates);
+    if ('auto_scan' in updates || 'recording_folder' in updates) {
+      if (settings.auto_scan === 'true' && settings.recording_folder) scannerService.startWatcher();
+      else scannerService.stopWatcher();
     }
-    settingsService.update(keyOrObj, val);
-    return settingsService.getAll();
+    return settings;
   });
 
-  ipcMain.handle('settings:chooseFolder', async () => {
-    return settingsService.chooseFolder(mainWindow);
+  ipcMain.handle('settings:chooseFolder', async (event) => {
+    return settingsService.chooseFolder(BrowserWindow.fromWebContents(event.sender));
   });
 
   ipcMain.handle('settings:getDatabasePath', async () => {

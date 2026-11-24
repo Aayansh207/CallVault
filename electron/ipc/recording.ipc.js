@@ -1,8 +1,8 @@
-const { ipcMain, dialog } = require('electron');
+const { ipcMain, dialog, BrowserWindow } = require('electron');
 const recordingService = require('../services/recording.service');
 const { logger } = require('../utils/logger');
 
-function registerRecordingIPC(mainWindow) {
+function registerRecordingIPC() {
   ipcMain.handle('recordings:list', async (_, options) => {
     return recordingService.list(options);
   });
@@ -66,8 +66,9 @@ function registerRecordingIPC(mainWindow) {
   });
 
   // Relocate missing file
-  ipcMain.handle('recordings:locateFile', async (_, id) => {
-    const result = await dialog.showOpenDialog(mainWindow, {
+  ipcMain.handle('recordings:locateFile', async (event, id) => {
+    const window = BrowserWindow.fromWebContents(event.sender);
+    const result = await dialog.showOpenDialog(window, {
       title: 'Locate Audio File',
       filters: [{ name: 'Audio Files', extensions: ['m4a'] }],
       properties: ['openFile'],

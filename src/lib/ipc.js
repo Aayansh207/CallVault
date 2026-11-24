@@ -47,7 +47,11 @@ export const api = {
     if (!filePath) return '';
     // Encode path for custom media:// protocol
     // Ensure leading slash
-    const normalized = filePath.startsWith('/') ? filePath : `/${filePath}`;
-    return `media://${encodeURI(normalized)}`;
+    const path = /^[A-Za-z]:/.test(filePath) ? filePath.replaceAll('\\', '/') : filePath;
+    const normalized = path.startsWith('/') ? path : `/${path}`;
+    const encoded = normalized.split('/').map((segment, index) => (
+      index === 1 && /^[A-Za-z]:$/.test(segment) ? segment : encodeURIComponent(segment)
+    )).join('/');
+    return `media://localhost${encoded}`;
   },
 };

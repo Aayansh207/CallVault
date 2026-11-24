@@ -24,6 +24,8 @@ function getDatabase(customPath = null) {
   instance.pragma('journal_mode = WAL');
   instance.pragma('synchronous = NORMAL');
   instance.pragma('foreign_keys = ON');
+  instance.function('phone_digits', { deterministic: true }, value => String(value || '').replace(/\D/g, ''));
+  instance.function('search_lower', { deterministic: true }, value => value?.normalize('NFC').toLowerCase() ?? null);
 
   // Run migrations
   runMigrations(instance);

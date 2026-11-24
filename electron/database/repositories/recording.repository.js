@@ -133,7 +133,7 @@ class RecordingRepository {
           ) as note_content
         FROM recordings r
         ${whereSql}
-        ORDER BY r.${sortColumn} ${sortOrder}
+        ORDER BY r.${sortColumn} ${sortOrder}, r.id ${sortOrder}
       `;
 
       if (options.limit) {
@@ -154,7 +154,7 @@ class RecordingRepository {
       }));
     } catch (err) {
       logger.error('Failed to list recordings', { error: err.message });
-      return [];
+      throw err;
     }
   }
 

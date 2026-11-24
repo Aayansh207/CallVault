@@ -183,8 +183,10 @@ class RecordingScanner extends EventEmitter {
       }
 
       // 3. Mark missing files (files in DB that were deleted or moved away)
-      const missingResult = recordingRepository.markMissingFiles(existingPathsOnDisk);
-      stats.missingFiles = missingResult.markedUnavailable;
+      if (!this.shouldCancel) {
+        const missingResult = recordingRepository.markMissingFiles(existingPathsOnDisk);
+        stats.missingFiles = missingResult.markedUnavailable;
+      }
 
       logger.info('Scan complete', stats);
 
