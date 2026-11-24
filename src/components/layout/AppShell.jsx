@@ -1,13 +1,15 @@
-import React from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import React, { useCallback } from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { TitleBar } from './TitleBar';
 import { Sidebar } from './Sidebar';
 import { MiniPlayer } from '../player/MiniPlayer';
 import { FullPlayerModal } from '../player/FullPlayerModal';
+import { TagModal } from '../recordings/TagModal';
 import { NoteModal } from '../recordings/NoteModal';
 import { DeleteConfirmModal } from '../recordings/DeleteConfirmModal';
 import { MergeContactsModal } from '../people/MergeContactsModal';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
+import { usePlayer } from '../../context/PlayerContext';
 import { useApp } from '../../context/AppContext';
 
 export function AppShell({ searchQuery, setSearchQuery }) {
@@ -16,7 +18,8 @@ export function AppShell({ searchQuery, setSearchQuery }) {
     refreshData,
     activeNoteRecording,
     closeNoteModal,
-    openNoteModal,
+    activeTagRecording,
+    closeTagModal,
     activeDeleteRecording,
     closeDeleteModal,
     activeMergeContact,
@@ -24,27 +27,25 @@ export function AppShell({ searchQuery, setSearchQuery }) {
     closeMergeModal,
   } = useApp();
 
-  // Initialize keyboard shortcuts
-  useKeyboardShortcuts();
-
-  const handleSearchChange = (query) => {
+  const { pathname } = useLocation();
+  const handleSearchChange = useCallback((query) => {
     setSearchQuery(query);
     // If user searches while not in Library, navigate back to library
-    if (query && window.location.pathname !== '/') {
+    if (query && pathname !== '/') {
       navigate('/');
     }
-  };
+  }, [navigate, pathname, setSearchQuery]);
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-vault-950 text-slate-100 select-none">
-      {/* Title Bar */}
+    <div className="app-shell">
+      <PlayerShortcuts />
       <TitleBar searchQuery={searchQuery} onSearchChange={handleSearchChange} />
 
       {/* Main Container: Sidebar + Content */}
       <div className="flex-1 flex overflow-hidden min-h-0">
         <Sidebar />
 
-        <main className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden bg-vault-950">
+        <main className="workspace">
           <Outlet />
         </main>
       </div>
@@ -56,19 +57,21 @@ export function AppShell({ searchQuery, setSearchQuery }) {
       <FullPlayerModal />
 
       {/* Note Modal */}
-      <NoteModal
+      <ActiveNoteModal
         recording={activeNoteRecording}
         isOpen={Boolean(activeNoteRecording)}
         onClose={closeNoteModal}
-        onNoteSaved={() => refreshData()}
+        onNoteSaved={refreshData}
       />
 
+      {activeTagRecording && <ActiveTagModal recording={activeTagRecording} onClose={closeTagModal} onUpdated={refreshData} />}
       {/* Delete Confirmation Modal */}
       <DeleteConfirmModal
+        key={activeDeleteRecording?.id ?? 'closed'}
         recording={activeDeleteRecording}
         isOpen={Boolean(activeDeleteRecording)}
         onClose={closeDeleteModal}
-        onDeleted={() => refreshData()}
+        onDeleted={refreshData}
       />
 
       {/* Merge Contacts Modal */}
@@ -76,9 +79,30 @@ export function AppShell({ searchQuery, setSearchQuery }) {
         isOpen={isMergeModalOpen}
         onClose={closeMergeModal}
         initialSourceContact={activeMergeContact}
-        onMerged={() => refreshData()}
+        onMerged={refreshData}
       />
     </div>
   );
 }
 
+
+function PlayerShortcuts() {
+  useKeyboardShortcuts();
+  return null;
+}
+
+function ActiveNoteModal({ onNoteSaved, ...props }) {
+  const { patchCurrentRecording } = usePlayer();
+  return <NoteModal {...props} onNoteSaved={(recording) => {
+    if (recording) patchCurrentRecording(recording);
+    onNoteSaved();
+  }} />;
+}
+
+function ActiveTagModal({ onUpdated, ...props }) {
+  const { patchCurrentRecording } = usePlayer();
+  return <TagModal {...props} onTagsUpdated={(recording) => {
+    patchCurrentRecording(recording);
+    onUpdated();
+  }} />;
+}

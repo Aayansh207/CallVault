@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useDeferredValue } from 'react';
 import {
   Users,
   Phone,
@@ -27,21 +27,23 @@ export function PeopleView() {
   const [search, setSearch] = useState('');
   const [selectedPerson, setSelectedPerson] = useState(null);
 
-  const loadPeople = async () => {
-    try {
-      setLoading(true);
-      const data = await api.recordings.getPeople();
-      setPeople(data || []);
-    } catch (err) {
-      console.error('Failed to load people:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    loadPeople();
+    let active = true;
+    api.recordings.getPeople().then(
+      (data) => { if (active) setPeople(data || []); },
+      (error) => console.error('Failed to load contacts:', error),
+    ).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, [refreshTrigger]);
+
+  const term = useDeferredValue(search.trim().toLowerCase());
+  const filteredPeople = useMemo(() => {
+    const digits = term.replace(/\D/g, '');
+    return people.filter((person) => (
+      [person.person_name, person.phone_number, person.identifier].some((field) => field?.toLowerCase().includes(term)) ||
+      (digits && /^[+\d().\s-]+$/.test(term) && person.phone_number?.replace(/\D/g, '').includes(digits))
+    ));
+  }, [people, term]);
 
   const handleOpenMerge = (contact = null) => {
     openMergeModal(contact);
@@ -58,18 +60,10 @@ export function PeopleView() {
   }
 
 
-  const filteredPeople = people.filter((p) => {
-    const term = search.toLowerCase();
-    const nameMatch = p.person_name && p.person_name.toLowerCase().includes(term);
-    const phoneMatch = p.phone_number && p.phone_number.toLowerCase().includes(term);
-    const idMatch = p.identifier && p.identifier.toLowerCase().includes(term);
-    return nameMatch || phoneMatch || idMatch;
-  });
-
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden bg-vault-950">
+    <div className="workspace-view">
       {/* Header */}
-      <div className="px-8 pt-7 pb-5 border-b border-vault-850/80 flex-shrink-0 bg-vault-950/80 backdrop-blur-md">
+      <div className="workspace-header">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-100 flex items-center space-x-2.5">
@@ -88,7 +82,8 @@ export function PeopleView() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Filter contacts..."
+                placeholder="Filter contacts…"
+                aria-label="Filter contacts"
                 className="w-full bg-vault-900 border border-vault-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
               />
             </div>
@@ -108,7 +103,7 @@ export function PeopleView() {
       </div>
 
       {/* Grid of Contacts */}
-      <div className="flex-1 overflow-y-auto px-8 py-6">
+      <div className="workspace-scroll workspace-padding" tabIndex={0} role="region" aria-label="Contacts">
         {loading ? (
           <LoadingSpinner text="Loading contacts..." />
         ) : filteredPeople.length === 0 ? (
@@ -122,13 +117,21 @@ export function PeopleView() {
             }
           />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="people-grid">
             {filteredPeople.map((person) => {
               const displayName = person.person_name || person.phone_number || 'Unknown';
               return (
                 <div
                   key={person.identifier}
                   onClick={() => setSelectedPerson(person)}
+                  tabIndex={0}
+                  role="group"
+                  onKeyDown={(event) => {
+                    if (event.target === event.currentTarget && ['Enter', ' '].includes(event.key)) {
+                      event.preventDefault();
+                      setSelectedPerson(person);
+                    }
+                  }}
                   className="bg-vault-900/60 hover:bg-vault-850/80 border border-vault-800/80 hover:border-sky-500/40 rounded-2xl p-5 cursor-pointer transition-all duration-200 hover:shadow-xl hover:shadow-sky-950/20 group flex flex-col justify-between"
                 >
                   <div className="flex items-start justify-between mb-4">

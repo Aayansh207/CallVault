@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   FolderOpen,
+  Moon,
+  Sun,
+  Monitor,
   FolderSync,
   Database,
   Volume2,
@@ -12,10 +15,12 @@ import {
   Download,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { useTheme } from '../../context/ThemeContext';
 import { api } from '../../lib/ipc';
 
 export function SettingsView() {
   const { settings, updateSetting, startScan, scanningState, refreshData } = useApp();
+  const { theme, setTheme } = useTheme();
   const [dbPath, setDbPath] = useState('');
   const [feedbackMsg, setFeedbackMsg] = useState(null);
 
@@ -44,8 +49,8 @@ export function SettingsView() {
   const handleRescan = async (forceFull = false) => {
     if (!settings.recording_folder) return;
     try {
-      await startScan(settings.recording_folder, { forceFullRescan: forceFull });
-      showFeedback(forceFull ? 'Full library index rebuilt' : 'Incremental scan finished');
+      const result = await startScan(settings.recording_folder, { forceFullRescan: forceFull });
+      showFeedback(result.canceled ? 'Scan canceled' : forceFull ? 'Full library index rebuilt' : 'Incremental scan finished');
     } catch (err) {
       console.error(err);
     }
@@ -68,9 +73,9 @@ export function SettingsView() {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden bg-vault-950">
+    <div className="workspace-view">
       {/* Header */}
-      <div className="px-8 pt-7 pb-5 border-b border-vault-850/80 flex-shrink-0">
+      <div className="workspace-header">
         <h1 className="text-2xl font-bold text-slate-100 flex items-center space-x-2.5">
           <span>Settings</span>
         </h1>
@@ -87,7 +92,17 @@ export function SettingsView() {
       )}
 
       {/* Main Settings Sections */}
-      <div className="flex-1 overflow-y-auto px-8 py-6 space-y-8 max-w-4xl">
+      <div className="workspace-scroll workspace-padding space-y-5" tabIndex={0} role="region" aria-label="Settings">
+        <section className="bg-vault-900 border border-vault-800 rounded-2xl p-6">
+          <h2 className="text-base font-semibold text-slate-100 mb-3">Appearance</h2>
+          <div className="library-filters" aria-label="Color theme">
+            {[['system', 'System', Monitor], ['light', 'Light', Sun], ['dark', 'Dark', Moon]].map(([id, label, Icon]) => (
+              <button key={id} type="button" aria-pressed={theme === id} onClick={() => setTheme(id)}>
+                <Icon />{label}
+              </button>
+            ))}
+          </div>
+        </section>
         {/* Section 1: General & Folder */}
         <section className="bg-vault-900/60 border border-vault-800/80 rounded-2xl p-6">
           <div className="flex items-center space-x-2.5 mb-4">
@@ -105,7 +120,7 @@ export function SettingsView() {
                   type="text"
                   readOnly
                   value={settings.recording_folder || 'No folder configured'}
-                  className="flex-1 bg-vault-950 border border-vault-800 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-300 focus:outline-none"
+                  className="min-w-0 flex-1 bg-vault-950 border border-vault-800 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-300 focus:outline-none"
                 />
                 <button
                   type="button"

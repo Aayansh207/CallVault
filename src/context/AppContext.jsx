@@ -5,6 +5,7 @@ const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
   const [settings, setSettings] = useState({});
+  const [settingsReady, setSettingsReady] = useState(false);
   const [stats, setStats] = useState({
     total_recordings: 0,
     total_duration_seconds: 0,
@@ -30,6 +31,7 @@ export function AppProvider({ children }) {
 
   // Global modal state
   const [activeNoteRecording, setActiveNoteRecording] = useState(null);
+  const [activeTagRecording, setActiveTagRecording] = useState(null);
   const [activeDeleteRecording, setActiveDeleteRecording] = useState(null);
   const [activeMergeContact, setActiveMergeContact] = useState(null);
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
@@ -41,6 +43,8 @@ export function AppProvider({ children }) {
   const closeNoteModal = useCallback(() => {
     setActiveNoteRecording(null);
   }, []);
+
+  const closeTagModal = useCallback(() => setActiveTagRecording(null), []);
 
   const openDeleteModal = useCallback((recording) => {
     setActiveDeleteRecording(recording);
@@ -79,6 +83,8 @@ export function AppProvider({ children }) {
       if (s) setSettings(s);
     } catch (err) {
       console.error('Failed to fetch settings:', err);
+    } finally {
+      setSettingsReady(true);
     }
   }, []);
 
@@ -93,9 +99,12 @@ export function AppProvider({ children }) {
 
   useEffect(() => {
     fetchSettings();
+  }, [fetchSettings]);
+
+  useEffect(() => {
     fetchStats();
     fetchTags();
-  }, [fetchSettings, fetchStats, fetchTags, refreshTrigger]);
+  }, [fetchStats, fetchTags, refreshTrigger]);
 
   // Wire scanner events
   useEffect(() => {
@@ -126,7 +135,6 @@ export function AppProvider({ children }) {
         skippedFiles: data.skippedFiles || 0,
         missingFiles: data.missingFiles || 0,
       });
-      fetchStats();
       refreshData();
     });
 
@@ -139,7 +147,6 @@ export function AppProvider({ children }) {
     });
 
     const unsubFileChange = api.scanner.onFileChange(() => {
-      fetchStats();
       refreshData();
     });
 
@@ -164,10 +171,7 @@ export function AppProvider({ children }) {
       missingFiles: 0,
     });
     try {
-      const result = await api.scanner.scan(folder, options);
-      fetchStats();
-      refreshData();
-      return result;
+      return await api.scanner.scan(folder, options);
     } catch (err) {
       setScanningState((prev) => ({ ...prev, isScanning: false, phase: 'error' }));
       throw err;
@@ -187,6 +191,7 @@ export function AppProvider({ children }) {
 
   const value = {
     settings,
+    settingsReady,
     stats,
     tags,
     selectedTag,
@@ -206,6 +211,9 @@ export function AppProvider({ children }) {
     activeNoteRecording,
     openNoteModal,
     closeNoteModal,
+    activeTagRecording,
+    openTagModal: setActiveTagRecording,
+    closeTagModal,
     activeDeleteRecording,
     openDeleteModal,
     closeDeleteModal,

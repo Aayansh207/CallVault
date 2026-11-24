@@ -43,22 +43,22 @@ export function OnboardingView({ onComplete }) {
       : 0;
 
   return (
-    <div className="min-h-screen bg-vault-950 flex flex-col items-center justify-center p-6 text-center select-none relative overflow-hidden">
+    <div className="welcome-screen">
       {/* Background glow effects */}
       <div className="absolute -top-40 -left-40 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="w-full max-w-lg bg-vault-900/90 border border-vault-800/80 rounded-3xl p-8 shadow-2xl backdrop-blur-xl relative z-10">
-        {/* Branding Icon */}
-        <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white mx-auto shadow-xl shadow-sky-500/20 mb-6">
+      <div className="welcome-card">
+        <div className="welcome-brand">CallVault</div>
+        <div className="welcome-symbol">
           <ShieldCheck className="w-9 h-9" />
         </div>
 
-        {scanningState.phase === 'idle' && (
+        {['idle', 'error'].includes(scanningState.phase) && (
           <>
-            <h1 className="text-2xl font-bold text-slate-100 mb-2">Welcome to CallVault</h1>
+            <h1 className="text-2xl font-bold text-slate-100 mb-2">Your call archive</h1>
             <p className="text-sm text-slate-400 mb-8 max-w-sm mx-auto leading-relaxed">
-              Manage your call recordings privately, entirely on your device. Zero cloud uploads, zero telemetry.
+              Choose a folder of recordings to start your private, searchable library.
             </p>
 
             {error && (
@@ -78,22 +78,7 @@ export function OnboardingView({ onComplete }) {
               <span>{isSelecting ? 'Selecting...' : 'Choose Recording Folder'}</span>
             </button>
 
-            <div className="mt-8 pt-6 border-t border-vault-800/80 flex items-center justify-center space-x-6 text-xs text-slate-500">
-              <span className="flex items-center space-x-1.5">
-                <HardDrive className="w-3.5 h-3.5" />
-                <span>Local-first</span>
-              </span>
-              <span>·</span>
-              <span className="flex items-center space-x-1.5">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>100% Private</span>
-              </span>
-              <span>·</span>
-              <span className="flex items-center space-x-1.5">
-                <Mic2 className="w-3.5 h-3.5" />
-                <span>Fast Indexing</span>
-              </span>
-            </div>
+            <button className="welcome-skip" type="button" onClick={onComplete}>Browse the library</button>
           </>
         )}
 

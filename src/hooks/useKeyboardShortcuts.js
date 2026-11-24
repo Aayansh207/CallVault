@@ -1,93 +1,46 @@
 import { useEffect } from 'react';
+import { useApp } from '../context/AppContext';
 import { usePlayer } from '../context/PlayerContext';
 
 export function useKeyboardShortcuts() {
-  const {
-    isPlaying,
-    togglePlayPause,
-    skip,
-    volume,
-    changeVolume,
-    toggleMute,
-    toggleFavorite,
-    currentRecording,
-  } = usePlayer();
+  const { settings } = useApp();
+  const { togglePlayPause, skip, volume, changeVolume, toggleMute, toggleFavorite, currentRecording } = usePlayer();
 
   useEffect(() => {
-    function handleKeyDown(e) {
-      // Do not intercept if user is typing in an input, textarea, or contentEditable element
-      const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
-      const isInput =
-        activeTag === 'input' ||
-        activeTag === 'textarea' ||
-        activeTag === 'select' ||
-        document.activeElement?.isContentEditable;
+    function handleKeyDown(event) {
+      if (!currentRecording || event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
+      if (event.target instanceof HTMLElement &&
+          event.target.closest('input, textarea, select, button, a, [contenteditable], [role="region"]')) return;
 
-      if (isInput) return;
-
-      switch (e.code) {
+      switch (event.code) {
         case 'Space':
-          e.preventDefault();
           togglePlayPause();
           break;
-
         case 'ArrowLeft':
-          e.preventDefault();
-          if (e.shiftKey) {
-            skip(-15);
-          } else {
-            skip(-5);
-          }
+          skip(event.shiftKey ? -(Number(settings.skip_backward_seconds) || 15) : -5);
           break;
-
         case 'ArrowRight':
-          e.preventDefault();
-          if (e.shiftKey) {
-            skip(30);
-          } else {
-            skip(5);
-          }
+          skip(event.shiftKey ? Number(settings.skip_forward_seconds) || 30 : 5);
           break;
-
         case 'ArrowUp':
-          e.preventDefault();
-          changeVolume(Math.min(1, volume + 0.1));
+          changeVolume(volume + 0.1);
           break;
-
         case 'ArrowDown':
-          e.preventDefault();
-          changeVolume(Math.max(0, volume - 0.1));
+          changeVolume(volume - 0.1);
           break;
-
         case 'KeyF':
-          if (!e.metaKey && !e.ctrlKey) {
-            e.preventDefault();
-            toggleFavorite();
-          }
+          if (!event.repeat) toggleFavorite().catch(console.error);
           break;
-
         case 'KeyM':
-          if (!e.metaKey && !e.ctrlKey) {
-            e.preventDefault();
-            toggleMute();
-          }
+          if (!event.repeat) toggleMute();
           break;
-
         default:
-          break;
+          return;
       }
+      event.preventDefault();
     }
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [
-    isPlaying,
-    togglePlayPause,
-    skip,
-    volume,
-    changeVolume,
-    toggleMute,
-    toggleFavorite,
-    currentRecording,
-  ]);
+  }, [currentRecording, settings, togglePlayPause, skip, volume, changeVolume, toggleMute, toggleFavorite]);
 }
