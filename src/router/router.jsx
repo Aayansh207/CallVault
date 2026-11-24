@@ -24,7 +24,6 @@ export function AppRoutes({ searchQuery, setSearchQuery }) {
           element={
             <LibraryView
               searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
             />
           }
         />

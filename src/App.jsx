@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { BrowserRouter } from 'react-router-dom';
+import { HashRouter } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
 import { PlayerProvider } from './context/PlayerContext';
 import { AppRoutes } from './router/router';
 import { OnboardingView } from './features/onboarding/OnboardingView';
+import { ThemeProvider } from './context/ThemeContext';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 function AppContent() {
 
-  const { hasFolder, stats } = useApp();
+  const { hasFolder, settingsReady } = useApp();
   const [onboardingDismissed, setOnboardingDismissed] = useState(() => {
     try {
       return localStorage.getItem('callvault_onboarded') === 'true';
@@ -26,6 +27,8 @@ function AppContent() {
       // ignore storage errors
     }
   };
+
+  if (!settingsReady) return null;
 
   // Only show onboarding if user has not chosen a folder AND hasn't dismissed it
   const showOnboarding = !hasFolder && !onboardingDismissed;
@@ -46,13 +49,15 @@ function AppContent() {
 export default function App() {
   return (
     <ErrorBoundary>
-      <BrowserRouter>
-        <AppProvider>
-          <PlayerProvider>
-            <AppContent />
-          </PlayerProvider>
-        </AppProvider>
-      </BrowserRouter>
+      <ThemeProvider>
+        <HashRouter>
+          <AppProvider>
+            <PlayerProvider>
+              <AppContent />
+            </PlayerProvider>
+          </AppProvider>
+        </HashRouter>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 }
