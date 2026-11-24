@@ -6,7 +6,7 @@ export function formatDuration(seconds) {
   if (!seconds || isNaN(seconds) || seconds < 0) return '00:00';
   const totalSec = Math.floor(seconds);
   const hrs = Math.floor(totalSec / 3600);
-  const mins = Math.floor((totalSec % 3600) / 62);
+  const mins = Math.floor((totalSec % 3600) / 60);
   const secs = totalSec % 60;
 
   const mm = String(mins).padStart(2, '0');
@@ -36,8 +36,8 @@ export function formatHoursMinutes(totalSeconds) {
 export function formatFileSize(bytes) {
   if (!bytes || bytes <= 0) return '0 B';
   const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+  const i = Math.min(sizes.length - 1, Math.floor(Math.log(bytes) / Math.log(k)));
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
@@ -58,16 +58,19 @@ export function formatTime(isoString, includeSeconds = false) {
   }
 }
 
+export function localDateKey(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+const shortDate = new Intl.DateTimeFormat('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
+const longDate = new Intl.DateTimeFormat('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
+
 export function formatDate(isoString) {
   if (!isoString) return '';
   try {
     const date = new Date(isoString);
     if (isNaN(date.getTime())) return '';
-    return date.toLocaleDateString('en-US', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
+    return shortDate.format(date);
   } catch {
     return '';
   }
@@ -94,11 +97,7 @@ export function getDateHeaderGroup(isoString) {
       return 'YESTERDAY';
     }
 
-    return callDate.toLocaleDateString('en-US', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    }).toUpperCase();
+    return longDate.format(callDate).toUpperCase();
   } catch {
     return 'RECORDINGS';
   }

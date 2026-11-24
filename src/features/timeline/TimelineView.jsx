@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -8,21 +8,19 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { api } from '../../lib/ipc';
-import { RecordingRow } from '../../components/recordings/RecordingRow';
+import { RecordingList } from '../../components/recordings/RecordingList';
+import { useRecordings } from '../../hooks/useRecordings';
+import { localDateKey } from '../../lib/formatters';
 import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { SortSelector } from '../../components/common/SortSelector';
 import { SORT_OPTIONS } from '../../lib/constants';
 
 export function TimelineView() {
-  const { openNoteModal, openDeleteModal, refreshTrigger } = useApp();
+  const { refreshTrigger } = useApp();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDayStr, setSelectedDayStr] = useState(() => {
-    return new Date().toISOString().split('T')[0];
-  });
+  const [selectedDayStr, setSelectedDayStr] = useState(localDateKey);
   const [monthCounts, setMonthCounts] = useState({});
-  const [dayRecordings, setDayRecordings] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [sortOption, setSortOption] = useState(SORT_OPTIONS[0]);
 
   const year = currentDate.getFullYear();
@@ -33,6 +31,7 @@ export function TimelineView() {
 
   // Load monthly counts for calendar dots
   useEffect(() => {
+    let active = true;
     async function loadCounts() {
       try {
         const counts = await api.recordings.getTimeline(yearMonthPrefix);
@@ -40,35 +39,19 @@ export function TimelineView() {
         for (const item of counts) {
           map[item.date] = item.count;
         }
-        setMonthCounts(map);
+        if (active) setMonthCounts(map);
       } catch (err) {
         console.error('Failed to load timeline counts:', err);
       }
     }
     loadCounts();
-  }, [yearMonthPrefix]);
+    return () => { active = false; };
+  }, [yearMonthPrefix, refreshTrigger]);
 
-  // Load recordings for selected day
-  const loadDayRecordings = async () => {
-    if (!selectedDayStr) return;
-    try {
-      setLoading(true);
-      const list = await api.recordings.list({
-        date: selectedDayStr,
-        sortBy: sortOption.column,
-        sortOrder: sortOption.order,
-      });
-      setDayRecordings(list || []);
-    } catch (err) {
-      console.error('Failed to load day recordings:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadDayRecordings();
-  }, [selectedDayStr, sortOption, refreshTrigger]);
+  const options = useMemo(() => ({
+    date: selectedDayStr, available: 1, sortBy: sortOption.column, sortOrder: sortOption.order,
+  }), [selectedDayStr, sortOption]);
+  const { recordings: dayRecordings, loading, updating, error } = useRecordings(options);
 
   const handlePrevMonth = () => {
     setCurrentDate(new Date(year, month - 1, 1));
@@ -108,9 +91,9 @@ export function TimelineView() {
     : '';
 
   return (
-    <div className="flex-1 flex flex-col md:flex-row h-full overflow-hidden bg-vault-950">
+    <div className="workspace-view timeline-view">
       {/* Left: Interactive Calendar */}
-      <div className="w-full md:w-96 p-6 border-b md:border-b-0 md:border-r border-vault-850/80 flex flex-col flex-shrink-0">
+      <div className="timeline-calendar" tabIndex={0} role="region" aria-label="Recording calendar">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold text-slate-100 flex items-center space-x-2">
             <CalendarIcon className="w-5 h-5 text-sky-400" />
@@ -197,8 +180,8 @@ export function TimelineView() {
       </div>
 
       {/* Right: Calls on selected day */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
-        <div className="p-6 border-b border-vault-850/80 flex-shrink-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="workspace-view">
+        <div className="workspace-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h2 className="text-xl font-bold text-slate-100">{selectedDateFormatted}</h2>
             <p className="text-xs text-slate-400 mt-0.5">
@@ -213,29 +196,17 @@ export function TimelineView() {
           />
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-2">
+        <RecordingList recordings={dayRecordings} listKey={selectedDayStr + sortOption.value} busy={updating}>
           {loading ? (
             <LoadingSpinner text="Loading day recordings..." />
           ) : dayRecordings.length === 0 ? (
             <EmptyState
               icon={Mic2}
-              title="No recordings on this date"
+              title={error ? 'Could not load this day' : 'No recordings on this date'}
               description={`There are no recorded calls for ${selectedDateFormatted}. Select a different date from the calendar.`}
             />
-          ) : (
-            dayRecordings.map((recording) => (
-              <RecordingRow
-                key={recording.id}
-                recording={recording}
-                playlist={dayRecordings}
-                onOpenNote={openNoteModal}
-                onOpenDelete={openDeleteModal}
-                onUpdated={loadDayRecordings}
-              />
-            ))
-
-          )}
-        </div>
+          ) : null}
+        </RecordingList>
       </div>
     </div>
   );

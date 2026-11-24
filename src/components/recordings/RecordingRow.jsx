@@ -1,349 +1,175 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { memo, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
-  Play,
-  Pause,
-  Star,
-  MoreVertical,
-  Phone,
-  FileText,
-  AlertTriangle,
-  Folder,
-  ExternalLink,
-  Trash2,
-  Search,
-  MessageSquarePlus,
+  AlertTriangle, ExternalLink, FileText, Folder, MoreHorizontal, Pause, Play, Search, Star, Tag, Trash2,
 } from 'lucide-react';
-import { usePlayer } from '../../context/PlayerContext';
-import { useApp } from '../../context/AppContext';
+import { useRowPlayer } from '../../context/PlayerContext';
 import { api } from '../../lib/ipc';
-import {
-  formatDuration,
-  formatTime,
-  formatDate,
-  formatFileSize,
-  getInitials,
-  getAvatarColor,
-} from '../../lib/formatters';
+import { formatDuration, formatDate, formatTime, formatFileSize, getInitials, getAvatarColor } from '../../lib/formatters';
 
+function Highlight({ text, query }) {
+  if (!text || !query) return text;
+  const tokens = query.replaceAll('"', '').split(/\s+/).filter(Boolean);
+  if (!tokens.length) return text;
+  const escaped = tokens.map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const parts = String(text).split(new RegExp(`(${escaped.join('|')})`, 'iu'));
+  return parts.map((part, index) => index % 2 ? <mark key={index}>{part}</mark> : part);
+}
 
-export function RecordingRow({
-  recording,
-  playlist = [],
-  searchHighlight = '',
-  onOpenNote,
-  onOpenDelete,
-  onUpdated,
+export const RecordingRow = memo(function RecordingRow({
+  recording, playlist, searchHighlight, onOpenNote, onOpenTags, onOpenDelete, onUpdated,
 }) {
-  const { currentRecording, isPlaying, playRecording, togglePlayPause, toggleFavorite } = usePlayer();
-  const { openNoteModal, openDeleteModal } = useApp();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const { currentId, isPlaying, playRecording, togglePlayPause, toggleFavorite } = useRowPlayer();
+  const [menu, setMenu] = useState(null);
+  const [pendingFavorite, setPendingFavorite] = useState(null);
+  const [error, setError] = useState('');
   const menuRef = useRef(null);
+  const trigger = useRef(null);
+  const isCurrent = currentId === recording.id;
+  const playing = isCurrent && isPlaying;
+  const available = Boolean(recording.available);
+  const starred = pendingFavorite ?? Boolean(recording.favorite);
+  const displayName = recording.person_name || recording.phone_number || recording.file_name;
+  const phone = recording.person_name && recording.phone_number;
 
-  const isCurrent = currentRecording?.id === recording.id;
-  const isRowPlaying = isCurrent && isPlaying;
-  const isAvailable = recording.available === 1;
-
-  // Close context menu on click outside
   useEffect(() => {
-    function handleClickOutside(e) {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setMenuOpen(false);
+    setPendingFavorite(null);
+  }, [recording.favorite]);
+
+  useEffect(() => {
+    const popup = menuRef.current;
+    if (!menu || !popup) return;
+    const roomBelow = window.innerHeight - menu.bottom;
+    popup.style.top = `${roomBelow >= popup.offsetHeight + 8
+      ? menu.bottom + 4
+      : Math.max(8, menu.top - popup.offsetHeight - 4)}px`;
+    popup.querySelector('button')?.focus({ preventScroll: true });
+
+    function dismiss(event) {
+      if (!popup.contains(event.target) && !trigger.current?.contains(event.target)) setMenu(null);
+    }
+
+    function escape(event) {
+      if (event.key === 'Escape') {
+        setMenu(null);
+        trigger.current?.focus({ preventScroll: true });
       }
     }
-    if (menuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+
+    const close = () => setMenu(null);
+    document.addEventListener('pointerdown', dismiss);
+    document.addEventListener('keydown', escape);
+    document.addEventListener('scroll', dismiss, true);
+    window.addEventListener('resize', close);
+    return () => {
+      document.removeEventListener('pointerdown', dismiss);
+      document.removeEventListener('keydown', escape);
+      document.removeEventListener('scroll', dismiss, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [menu]);
+
+  const play = () => {
+    if (!available) return;
+    if (isCurrent) togglePlayPause();
+    else playRecording(recording, playlist);
+  };
+  const favorite = async () => {
+    if (pendingFavorite !== null) return;
+    setError('');
+    setPendingFavorite(!starred);
+    try {
+      await toggleFavorite(recording);
+    } catch {
+      setPendingFavorite(null);
+      setError('Could not update favorite');
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [menuOpen]);
+  };
 
-  const handlePlayClick = (e) => {
-    e.stopPropagation();
-    if (isCurrent) {
-      togglePlayPause();
-    } else {
-      playRecording(recording, playlist);
+  const menuAction = (action) => async () => {
+    setMenu(null);
+    trigger.current?.focus({ preventScroll: true });
+    try {
+      await action();
+    } catch {
+      setError('Could not complete action');
     }
   };
-
-  const handleFavClick = async (e) => {
-    e.stopPropagation();
-    await toggleFavorite(recording);
-    if (onUpdated) onUpdated();
-  };
-
-  const handleNoteClick = (e) => {
-    e.stopPropagation();
-    if (onOpenNote) onOpenNote(recording);
-    else openNoteModal(recording);
-  };
-
-  const handleRevealInFinder = async (e) => {
-    e.stopPropagation();
-    setMenuOpen(false);
-    await api.system.revealInFinder(recording.file_path);
-  };
-
-  const handleOpenWith = async (e) => {
-    e.stopPropagation();
-    setMenuOpen(false);
-    await api.system.openWith(recording.file_path);
-  };
-
-  const handleLocateFile = async (e) => {
-    e.stopPropagation();
-    setMenuOpen(false);
-    const updated = await api.recordings.locateFile(recording.id);
-    if (updated && onUpdated) onUpdated();
-  };
-
-  const displayName = recording.person_name || recording.phone_number || 'Unknown';
-  const hasPhone = recording.person_name && recording.phone_number;
 
   return (
-    <div
-      onClick={handlePlayClick}
-      className={`group relative flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer ${
-        isCurrent
-          ? 'bg-gradient-to-r from-sky-950/50 via-vault-900/90 to-vault-900/70 border-sky-500/40 shadow-xl shadow-sky-950/30 ring-1 ring-sky-500/20'
-          : 'bg-vault-900/60 hover:bg-vault-850/80 border-vault-800/70 hover:border-slate-700/80 hover:shadow-lg'
-      } ${!isAvailable ? 'opacity-65' : ''}`}
+    <article
+      className="recording-row"
+      data-current={isCurrent}
+      data-available={available}
+      onClick={(event) => {
+        if (!event.target.closest('button')) play();
+      }}
     >
-      {/* Left: Avatar & Identity Details */}
-      <div className="flex items-center space-x-3.5 min-w-0 flex-1 pr-3">
-        {/* Play / Avatar circle */}
-        <div className="relative flex-shrink-0">
-          <div
-            className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${getAvatarColor(
-              displayName
-            )} flex items-center justify-center text-white font-bold text-sm shadow-md transition-transform group-hover:scale-105`}
-          >
-            {isRowPlaying ? (
-              <div className="flex items-end space-x-0.5 h-4">
-                <span className="w-1 bg-white rounded-full animate-wave-1" />
-                <span className="w-1 bg-white rounded-full animate-wave-2" />
-                <span className="w-1 bg-white rounded-full animate-wave-3" />
-                <span className="w-1 bg-white rounded-full animate-wave-4" />
-              </div>
-            ) : (
-              <span>{getInitials(displayName)}</span>
-            )}
-          </div>
-
-          <button
-            type="button"
-            onClick={handlePlayClick}
-            aria-label={isRowPlaying ? 'Pause' : 'Play'}
-            className={`absolute inset-0 rounded-2xl flex items-center justify-center transition-all bg-black/60 text-white backdrop-blur-[2px] ${
-              isCurrent ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-            }`}
-          >
-            {isRowPlaying ? (
-              <Pause className="w-5 h-5 fill-current" />
-            ) : (
-              <Play className="w-5 h-5 fill-current ml-0.5" />
-            )}
-          </button>
-        </div>
-
-        {/* Text information */}
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center space-x-2 flex-wrap">
-            <span
-              className={`font-semibold text-sm truncate tracking-tight ${
-                isCurrent ? 'text-sky-300' : 'text-slate-100'
-              }`}
-            >
-              {displayName}
-            </span>
-
-            {!isAvailable && (
-              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-950/80 text-amber-300 border border-amber-800/60">
-                <AlertTriangle className="w-3 h-3" />
-                <span>Unavailable</span>
-              </span>
-            )}
-
-            {/* Note Snippet Pill */}
-            {recording.note_content ? (
-              <button
-                type="button"
-                onClick={handleNoteClick}
-                className="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded-lg text-xs bg-sky-950/60 border border-sky-800/60 text-sky-300 hover:bg-sky-900/60 transition max-w-xs truncate"
-                title={recording.note_content}
-              >
-                <FileText className="w-3 h-3 flex-shrink-0" />
-                <span className="truncate max-w-[160px] text-[11px] font-medium">
-                  {recording.note_content}
-                </span>
-              </button>
-            ) : null}
-          </div>
-
-          <div className="flex items-center space-x-2.5 mt-1 text-xs text-slate-400">
-            {hasPhone && (
-              <span className="flex items-center space-x-1 text-slate-400 font-mono text-[11px]">
-                <Phone className="w-3 h-3 text-slate-500" />
-                <span>{recording.phone_number}</span>
-              </span>
-            )}
-            {hasPhone && <span>·</span>}
-            <span className="font-mono text-slate-400 text-[11px]">
-              {formatTime(recording.recorded_at)}
-            </span>
-            <span>·</span>
-            <span className="text-slate-400 text-[11px]">
-              {formatDate(recording.recorded_at)}
-            </span>
-            {recording.file_size > 0 && (
-              <>
-                <span>·</span>
-                <span className="font-mono text-slate-400 text-[11px]">
-                  {formatFileSize(recording.file_size)}
-                </span>
-              </>
-            )}
-          </div>
+      <button
+        type="button"
+        className={`recording-avatar bg-gradient-to-br ${getAvatarColor(displayName)}`}
+        onClick={play}
+        disabled={!available}
+        aria-label={`${playing ? 'Pause' : 'Play'} ${displayName}`}
+      >
+        <span>{getInitials(displayName)}</span>
+        {playing ? <Pause fill="currentColor" /> : <Play fill="currentColor" />}
+      </button>
+      <div className="recording-info">
+        <div className="recording-name" title={displayName}><Highlight text={displayName} query={searchHighlight} /></div>
+        <div className="recording-meta">
+          <span>{formatTime(recording.recorded_at)}</span>
+          <span className="recording-full-date">{formatDate(recording.recorded_at)}</span>
+          {recording.file_size > 0 && <span className="recording-file-size">{formatFileSize(recording.file_size)}</span>}
+          {phone && <span><Highlight text={phone} query={searchHighlight} /></span>}
+          {recording.tags?.length > 0 && <span className="recording-tags" title={recording.tags.map(tag => tag.name).join(', ')}>
+            <Highlight text={recording.tags.map(tag => tag.name).join(', ')} query={searchHighlight} />
+          </span>}
+          {!available && <span className="text-amber-400"><AlertTriangle /> Unavailable</span>}
+          {error && <span role="alert" className="text-rose-400">{error}</span>}
         </div>
       </div>
-
-      {/* Right: Duration & Quick Actions */}
-      <div className="flex items-center space-x-3.5 flex-shrink-0 mt-3 sm:mt-0 justify-end">
-        {/* Quick Add Note button on hover if no note exists */}
-        {!recording.note_content && (
-          <button
-            type="button"
-            onClick={handleNoteClick}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-sky-400 hover:bg-vault-800/80 transition opacity-0 group-hover:opacity-100"
-            title="Add Note"
-          >
-            <MessageSquarePlus className="w-4 h-4" />
-          </button>
-        )}
-
-        {/* Duration Badge */}
-        <div className="font-mono text-xs font-semibold px-2.5 py-1 rounded-xl bg-vault-950/70 border border-vault-800/80 text-slate-300 tabular-nums">
-          {formatDuration(recording.duration_seconds)}
-        </div>
-
-        {/* Favorite Star */}
+      {recording.note_content && (
+        <button className="recording-note" type="button" onClick={() => onOpenNote(recording)} title={recording.note_content}>
+          <FileText /><span><Highlight text={recording.note_content} query={searchHighlight} /></span>
+        </button>
+      )}
+      <span className="recording-duration">{formatDuration(recording.duration_seconds)}</span>
+      <div className="recording-actions">
+        <button type="button" className="icon-button quick-note" onClick={() => onOpenNote(recording)} aria-label={`Note for ${displayName}`} title="Add or edit note">
+          <FileText />
+        </button>
+        <button type="button" className="icon-button favorite-button" aria-pressed={starred} onClick={favorite} aria-label={`Favorite ${displayName}`} title={starred ? 'Remove favorite' : 'Add favorite'}>
+          <Star fill={starred ? 'currentColor' : 'none'} />
+        </button>
         <button
           type="button"
-          onClick={handleFavClick}
-          aria-label="Toggle Favorite"
-          className={`p-1.5 rounded-lg transition ${
-            recording.favorite
-              ? 'text-amber-400 hover:text-amber-300'
-              : 'text-slate-500 hover:text-slate-300 hover:bg-vault-800'
-          }`}
+          className="icon-button"
+          ref={trigger}
+          aria-label={`More actions for ${displayName}`}
+          aria-expanded={Boolean(menu)}
+          onClick={event => setMenu(menu ? null : event.currentTarget.getBoundingClientRect())}
         >
-          <Star
-            className={`w-4 h-4 ${recording.favorite ? 'fill-amber-400' : ''}`}
-          />
+          <MoreHorizontal />
         </button>
-
-        {/* Context Menu ⋮ */}
-        <div className="relative" ref={menuRef}>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setMenuOpen(!menuOpen);
-            }}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-vault-800 transition"
-          >
-            <MoreVertical className="w-4 h-4" />
-          </button>
-
-          {menuOpen && (
-            <div
-              onClick={(e) => e.stopPropagation()}
-              className="absolute right-0 mt-2 w-48 bg-vault-900 border border-vault-700/90 rounded-2xl shadow-2xl py-1 z-30 animate-modal text-xs text-slate-200"
-            >
-              <button
-                type="button"
-                onClick={handlePlayClick}
-                className="w-full flex items-center space-x-2.5 px-3 py-2 hover:bg-vault-800 text-left"
-              >
-                {isRowPlaying ? (
-                  <Pause className="w-4 h-4 text-sky-400" />
-                ) : (
-                  <Play className="w-4 h-4 text-sky-400" />
-                )}
-                <span>{isRowPlaying ? 'Pause' : 'Play Recording'}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleFavClick}
-                className="w-full flex items-center space-x-2.5 px-3 py-2 hover:bg-vault-800 text-left"
-              >
-                <Star className="w-4 h-4 text-amber-400" />
-                <span>{recording.favorite ? 'Remove Favorite' : 'Add to Favorites'}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setMenuOpen(false);
-                  if (onOpenNote) onOpenNote(recording);
-                  else openNoteModal(recording);
-                }}
-                className="w-full flex items-center space-x-2.5 px-3 py-2 hover:bg-vault-800 text-left"
-              >
-                <FileText className="w-4 h-4 text-sky-400" />
-                <span>{recording.note_content ? 'Edit Note' : 'Add Note'}</span>
-              </button>
-
-              <div className="my-1 border-t border-vault-800" />
-
-              <button
-                type="button"
-                onClick={handleRevealInFinder}
-                className="w-full flex items-center space-x-2.5 px-3 py-2 hover:bg-vault-800 text-left"
-              >
-                <Folder className="w-4 h-4 text-slate-400" />
-                <span>Reveal in Finder</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleOpenWith}
-                className="w-full flex items-center space-x-2.5 px-3 py-2 hover:bg-vault-800 text-left"
-              >
-                <ExternalLink className="w-4 h-4 text-slate-400" />
-                <span>Open with Default App</span>
-              </button>
-
-              {!isAvailable && (
-                <button
-                  type="button"
-                  onClick={handleLocateFile}
-                  className="w-full flex items-center space-x-2.5 px-3 py-2 hover:bg-vault-800 text-amber-300 text-left"
-                >
-                  <Search className="w-4 h-4" />
-                  <span>Locate File...</span>
-                </button>
-              )}
-
-              <div className="my-1 border-t border-vault-800" />
-
-              <button
-                type="button"
-                onClick={() => {
-                  setMenuOpen(false);
-                  if (onOpenDelete) onOpenDelete(recording);
-                  else openDeleteModal(recording);
-                }}
-                className="w-full flex items-center space-x-2.5 px-3 py-2 hover:bg-rose-950/40 text-rose-400 text-left"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Delete...</span>
-              </button>
-
-            </div>
-          )}
-        </div>
       </div>
-    </div>
+      {menu && createPortal(
+        <div className="recording-menu animate-modal" ref={menuRef} style={{ right: Math.max(8, window.innerWidth - menu.right) }}>
+          {available && <button type="button" onClick={menuAction(play)}>{playing ? <Pause /> : <Play />}{playing ? 'Pause' : 'Play recording'}</button>}
+          <button type="button" onClick={menuAction(favorite)}><Star />{starred ? 'Remove favorite' : 'Add favorite'}</button>
+          <button type="button" onClick={menuAction(() => onOpenNote(recording))}><FileText />{recording.note_content ? 'Edit note' : 'Add note'}</button>
+          <button type="button" onClick={menuAction(() => onOpenTags(recording))}><Tag />Manage tags</button>
+          {available ? <>
+            <button type="button" onClick={menuAction(() => api.system.revealInFinder(recording.file_path))}><Folder />Reveal in file browser</button>
+            <button type="button" onClick={menuAction(() => api.system.openWith(recording.file_path))}><ExternalLink />Open with default app</button>
+          </> : (
+            <button type="button" onClick={menuAction(async () => {
+              if (await api.recordings.locateFile(recording.id)) onUpdated();
+            })}><Search />Locate file</button>
+          )}
+          <button type="button" className="text-rose-400" onClick={menuAction(() => onOpenDelete(recording))}><Trash2 />Delete…</button>
+        </div>, document.body,
+      )}
+    </article>
   );
-}
+});

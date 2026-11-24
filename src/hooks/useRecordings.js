@@ -1,36 +1,35 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { api } from '../lib/ipc';
 import { useApp } from '../context/AppContext';
 
-export function useRecordings(initialOptions = {}) {
+export function useRecordings(options) {
   const { refreshTrigger } = useApp();
-  const [recordings, setRecordings] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [options, setOptions] = useState(initialOptions);
-
-  const fetchRecordings = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await api.recordings.list(options);
-      setRecordings(data || []);
-    } catch (err) {
-      console.error('Failed to fetch recordings:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [options]);
+  const [result, setResult] = useState(null);
+  const [isRendering, startTransition] = useTransition();
 
   useEffect(() => {
-    fetchRecordings();
-  }, [fetchRecordings, refreshTrigger]);
+    let active = true;
+    api.recordings.list(options).then(
+      (recordings) => {
+        if (active) startTransition(() => {
+          setResult({ options, refreshTrigger, recordings: recordings || [] });
+        });
+      },
+      () => {
+        if (active) setResult((previous) => ({
+          options, refreshTrigger, recordings: previous?.recordings || [], error: true,
+        }));
+      },
+    );
+    return () => { active = false; };
+  }, [options, refreshTrigger]);
 
   return {
-    recordings,
-    loading,
-    options,
-    setOptions,
-    refetch: fetchRecordings,
+    recordings: result?.recordings || EMPTY,
+    loading: result === null,
+    updating: isRendering || result?.options !== options || result?.refreshTrigger !== refreshTrigger,
+    error: result?.error,
   };
 }
 
-export default useRecordings;
+const EMPTY = [];

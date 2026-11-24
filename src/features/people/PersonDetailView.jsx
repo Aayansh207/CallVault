@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   ArrowLeft,
   Phone,
@@ -9,14 +9,13 @@ import {
   GitMerge,
   FileText,
 } from 'lucide-react';
-import { api } from '../../lib/ipc';
-import { useApp } from '../../context/AppContext';
+import { useRecordings } from '../../hooks/useRecordings';
 import {
   formatHoursMinutes,
   getInitials,
   getAvatarColor,
 } from '../../lib/formatters';
-import { RecordingRow } from '../../components/recordings/RecordingRow';
+import { RecordingList } from '../../components/recordings/RecordingList';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { EmptyState } from '../../components/common/EmptyState';
 import { SortSelector } from '../../components/common/SortSelector';
@@ -29,9 +28,6 @@ export function PersonDetailView({
   onBack,
   onOpenMerge,
 }) {
-  const { openNoteModal, openDeleteModal, openMergeModal, refreshTrigger } = useApp();
-  const [recordings, setRecordings] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [filterFavOnly, setFilterFavOnly] = useState(false);
   const [filterNotesOnly, setFilterNotesOnly] = useState(false);
 
@@ -39,40 +35,21 @@ export function PersonDetailView({
 
   const displayName = person.person_name || person.phone_number || 'Unknown';
 
-  const loadPersonRecordings = async () => {
-    try {
-      setLoading(true);
-      const params = {
-        person: displayName,
-        personName: person.person_name || undefined,
-        phoneNumber: person.phone_number || undefined,
-        sortBy: sortOption.column,
-        sortOrder: sortOption.order,
-      };
-      if (filterFavOnly) {
-        params.favorite = true;
-      }
-      if (filterNotesOnly) {
-        params.hasNotes = true;
-      }
-      const list = await api.recordings.list(params);
-      setRecordings(list || []);
-    } catch (err) {
-      console.error('Failed to load person recordings:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadPersonRecordings();
-  }, [person, filterFavOnly, filterNotesOnly, sortOption, refreshTrigger]);
-
+  const options = useMemo(() => ({
+    person: displayName,
+    personName: person.person_name || undefined,
+    phoneNumber: person.phone_number || undefined,
+    sortBy: sortOption.column,
+    sortOrder: sortOption.order,
+    favorite: filterFavOnly,
+    hasNotes: filterNotesOnly,
+  }), [displayName, person.person_name, person.phone_number, sortOption, filterFavOnly, filterNotesOnly]);
+  const { recordings, loading, updating, error } = useRecordings(options);
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden bg-vault-950">
+    <div className="workspace-view">
       {/* Top Banner / Contact Card */}
-      <div className="px-8 pt-6 pb-6 border-b border-vault-850/80 bg-vault-900/40 flex-shrink-0 backdrop-blur-md">
+      <div className="workspace-header">
         <button
           type="button"
           onClick={onBack}
@@ -174,33 +151,21 @@ export function PersonDetailView({
       </div>
 
       {/* Call History List */}
-      <div className="flex-1 overflow-y-auto px-8 py-6 space-y-2">
+      <RecordingList recordings={recordings} listKey={sortOption.value + filterFavOnly + filterNotesOnly} busy={updating}>
         {loading ? (
           <LoadingSpinner text="Loading call history..." />
         ) : recordings.length === 0 ? (
           <EmptyState
             icon={Mic2}
-            title="No calls found"
+            title={error ? 'Could not load calls' : 'No calls found'}
             description={
               filterFavOnly || filterNotesOnly
                 ? `No calls match the active filters for ${displayName}.`
                 : `No recordings found for this contact.`
             }
           />
-        ) : (
-          recordings.map((recording) => (
-            <RecordingRow
-              key={recording.id}
-              recording={recording}
-              playlist={recordings}
-              onOpenNote={openNoteModal}
-              onOpenDelete={openDeleteModal}
-              onUpdated={loadPersonRecordings}
-            />
-
-          ))
-        )}
-      </div>
+        ) : null}
+      </RecordingList>
     </div>
   );
 }

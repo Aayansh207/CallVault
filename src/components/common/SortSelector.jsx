@@ -7,7 +7,7 @@ export function SortSelector({
   onSortChange,
   options = SORT_OPTIONS,
   className = '',
-  label = 'Sort:',
+  label = 'Sort',
 }) {
   return (
     <div className={`flex items-center space-x-2 text-xs ${className}`}>
@@ -16,6 +16,7 @@ export function SortSelector({
         <span className="hidden sm:inline font-medium">{label}</span>
       </div>
       <select
+        aria-label={label}
         value={sortOption.value}
         onChange={(e) => {
           const opt = options.find((s) => s.value === e.target.value);
