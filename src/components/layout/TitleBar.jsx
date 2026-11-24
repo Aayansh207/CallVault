@@ -72,9 +72,9 @@ export function TitleBar({ searchQuery, onSearchChange }) {
             <button key={mode} type="button" aria-label={mode + ' theme'} title={mode + ' theme'} aria-pressed={theme === mode} onClick={() => setTheme(mode)}><Icon /></button>
           ))}
         </div>
-      <div className="indexing-status no-drag-region" role="status">
-        {scanningState.isScanning && <><FolderSync className="animate-spin" /><span>Indexing</span></>}
-      </div>
+        <div className="indexing-status" role="status">
+          {scanningState.isScanning && <><FolderSync className="animate-spin" /><span>Indexing</span></>}
+        </div>
       </div>
     </header>
   );

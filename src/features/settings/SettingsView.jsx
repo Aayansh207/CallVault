@@ -95,10 +95,11 @@ export function SettingsView() {
       <div className="workspace-scroll workspace-padding space-y-5" tabIndex={0} role="region" aria-label="Settings">
         <section className="bg-vault-900 border border-vault-800 rounded-2xl p-6">
           <h2 className="text-base font-semibold text-slate-100 mb-3">Appearance</h2>
-          <div className="library-filters" aria-label="Color theme">
+          <div className="theme-options" aria-label="Color theme">
             {[['system', 'System', Monitor], ['light', 'Light', Sun], ['dark', 'Dark', Moon]].map(([id, label, Icon]) => (
               <button key={id} type="button" aria-pressed={theme === id} onClick={() => setTheme(id)}>
-                <Icon />{label}
+                <span className={`theme-sample sample-${id}`} aria-hidden="true"><i /><b /></span>
+                <span className="theme-label"><Icon />{label}</span>
               </button>
             ))}
           </div>

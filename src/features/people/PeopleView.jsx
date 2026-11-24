@@ -67,10 +67,10 @@ export function PeopleView() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-100 flex items-center space-x-2.5">
-              <span>People & Contacts</span>
+              <span>People</span>
             </h1>
             <p className="text-xs text-slate-400 mt-0.5">
-              {people.length} {people.length === 1 ? 'contact' : 'contacts'} indexed with call histories
+              {people.length} {people.length === 1 ? 'contact' : 'contacts'}
             </p>
           </div>
 
@@ -136,7 +136,7 @@ export function PeopleView() {
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div
-                      className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${getAvatarColor(
+                      className={`contact-initials w-14 h-14 rounded-2xl bg-gradient-to-br ${getAvatarColor(
                         displayName
                       )} flex items-center justify-center text-white text-lg font-bold shadow-md group-hover:scale-105 transition-transform`}
                     >
