@@ -1,6 +1,6 @@
-const { app, BrowserWindow, protocol, net } = require('electron');
+const { app, BrowserWindow, protocol } = require('electron');
 const path = require('path');
-const { pathToFileURL } = require('url');
+const { serveAudioFile } = require('./services/media-response');
 const { getDatabase, closeDatabase } = require('./database/connection');
 const { registerAllIPC } = require('./ipc');
 const scannerService = require('./services/scanner.service');
@@ -93,11 +93,8 @@ function setupMediaProtocol() {
         decodedPath = '/' + url.host + decodedPath;
       }
 
-      // Convert to file:// URL and stream safely via net.fetch
       if (process.platform === 'win32') decodedPath = decodedPath.replace(/^\/(?=[A-Za-z]:\/)/, '');
-      const fileUrl = pathToFileURL(decodedPath).toString();
-      const range = request.headers.get('range');
-      return net.fetch(fileUrl, range ? { headers: { Range: range } } : undefined);
+      return serveAudioFile(request, decodedPath);
     } catch (err) {
       logger.error('Error serving media protocol', { error: err.message, url: request.url });
       return new Response('File not found', { status: 404 });
